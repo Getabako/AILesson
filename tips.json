@@ -19,7 +19,7 @@
   "levels": [
     { "id": "prompt", "label": "Lv.1 プロンプトのみ", "color": "green", "desc": "Claude Codeに指示を出すだけで実装できる。追加のAPIキーやサービス登録は不要。" },
     { "id": "api", "label": "Lv.2 API接続が必要", "color": "blue", "desc": "外部APIキー（Gemini, OpenAIなど）の取得と.envへの設定が必要。" },
-    { "id": "infra", "label": "Lv.3 環境構築が必要", "color": "purple", "desc": "ローカルバイナリ、ブラウザ自動化、OAuth認証、FTPなど、非自明な環境構築が必要。" }
+    { "id": "infra", "label": "Lv.3 環境構築が必要", "color": "purple", "desc": "データベース接続、GitHub/Vercelへの環境変数登録、ローカルバイナリ、ブラウザ自動化、OAuth認証、FTPなど、非自明な環境構築が必要。" }
   ],
   "tips": [
     {
@@ -441,6 +441,36 @@
       "source": "Claude Code標準機能",
       "usage": "忘れがちな定型処理を機械的に回したい。",
       "prompt": "~/.claude/settings.json に hook を追加してください。\n\n例1: TypeScript編集後に自動で tsc --noEmit\n```json\n{\n  \"hooks\": {\n    \"PostToolUse\": [\n      {\n        \"matcher\": \"Edit|Write\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"cd $CLAUDE_PROJECT_DIR && npx tsc --noEmit --pretty\"\n          }\n        ]\n      }\n    ]\n  }\n}\n```\n\n例2: セッション終了時に今日の作業ログを knowledge-base に書き出す\n```json\n{\n  \"Stop\": [\n    {\n      \"hooks\": [\n        { \"type\": \"command\", \"command\": \"~/.claude/scripts/save-log.sh\" }\n      ]\n    }\n  ]\n}\n```\n\n注意: マッチャーは正規表現。 settings.local.json にプロジェクト固有hookも書ける。"
+    },
+    {
+      "id": "infra-neon-db",
+      "title": "Neon PostgreSQL + Prisma セットアップ",
+      "category": "util",
+      "level": "infra",
+      "summary": "Vercel Marketplace 経由で Neon PostgreSQL を接続し、Prismaスキーマでデータモデルを定義する。",
+      "source": "LINEMiniApp 共通パターン",
+      "usage": "投稿履歴・ユーザーデータ・予約情報など、永続化が必要なデータを管理したい。",
+      "prompt": "Next.js プロジェクトに Neon PostgreSQL + Prisma を導入してください。\n\n手順:\n1. Vercel Dashboard → Storage → Create Database → Neon を選択\n2. `vercel env pull .env.local` で DATABASE_URL を取得\n3. Prisma セットアップ:\n```bash\nnpm i -D prisma@5.22.0\nnpm i @prisma/client@5.22.0\nnpx prisma init\n```\n4. prisma/schema.prisma:\n```prisma\ngenerator client { provider = \"prisma-client-js\" }\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\nmodel Post {\n  id        String   @id @default(cuid())\n  title     String\n  content   String\n  createdAt DateTime @default(now())\n}\n```\n5. `npx prisma migrate dev --name init` で初期マイグレーション\n6. lib/db.ts で PrismaClient をシングルトン化\n\n注意: Prisma は 5.22.0 固定（6.x/7.x は非互換）。Vercel Function は接続プールが必要なので、Neon 側でプーリング有効化を確認する。"
+    },
+    {
+      "id": "infra-vercel-env",
+      "title": "Vercel環境変数の登録・同期",
+      "category": "util",
+      "level": "infra",
+      "summary": "APIキーを Vercel Dashboard / CLIで登録し、ローカルと本番を同期する。",
+      "source": "Vercel ベストプラクティス",
+      "usage": "本番デプロイ時にAPIキーが読み込まれるようにしたい。",
+      "prompt": "Vercel プロジェクトに環境変数を登録する手順を整備してください。\n\n方法A: Vercel Dashboard\n1. Project Settings → Environment Variables\n2. Key: GEMINI_API_KEY / Value: sk-... / Environment: Production, Preview, Development\n3. Save\n\n方法B: Vercel CLI（推奨）\n```bash\nvercel env add GEMINI_API_KEY production\n# プロンプトでキーを入力\nvercel env add GEMINI_API_KEY preview\nvercel env add GEMINI_API_KEY development\n\n# 確認\nvercel env ls\n```\n\nローカル同期:\n```bash\nvercel env pull .env.local  # 本番と同じ値を取得\n```\n\nOIDC トークン対応（2026推奨）:\n- AWS / GCP などは静的キーではなく OIDC token で認証\n- Vercel Project Settings → OIDC を有効化\n- .env には直接書かず `VERCEL_OIDC_TOKEN` を自動注入させる\n\n機密扱いの項目は Sensitive トグルをONに（ダッシュボードで再表示不可になる）。"
+    },
+    {
+      "id": "infra-github-secrets",
+      "title": "GitHub Secretsの登録と利用",
+      "category": "util",
+      "level": "infra",
+      "summary": "GitHub Actions から参照できるシークレットをリポジトリ/環境単位で登録する。",
+      "source": "DailyInstagramWorkFlow / Sales_WorkFlow",
+      "usage": "GitHub Actions の cron ジョブで API キーを安全に使いたい。",
+      "prompt": "GitHub リポジトリに GitHub Secrets を登録して Actions から利用する手順を作ってください。\n\n登録方法:\n方法A: GitHub UI\n1. Repository Settings → Secrets and variables → Actions\n2. New repository secret\n3. Name: GEMINI_API_KEY / Secret: ...\n\n方法B: gh CLI（推奨）\n```bash\n# インストール\nbrew install gh && gh auth login\n\n# シークレット登録\ngh secret set GEMINI_API_KEY --body \"sk-...\"\ngh secret set FTP_PASS < ~/.secrets/ftp-pass.txt\n\n# 一覧確認\ngh secret list\n\n# 環境別（production / staging）\ngh secret set GEMINI_API_KEY --env production\n```\n\nWorkflow から参照:\n```yaml\nenv:\n  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}\n  FTP_PASS: ${{ secrets.FTP_PASS }}\n```\n\n注意:\n- Secret は暗号化され、ログには `***` でマスクされる\n- PR（fork）からは参照されないので、セキュリティ上安全\n- 有効期限のあるトークンは定期更新が必要"
     },
     {
       "id": "util-workflow-compose",

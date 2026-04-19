@@ -11,90 +11,103 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/style.css" />
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen antialiased">
+<body class="bg-white text-slate-800 min-h-screen antialiased">
 
-  <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-50">
-    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center font-black text-lg">if</div>
+  <header class="border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center font-black text-white text-lg">if</div>
         <div>
-          <h1 class="font-bold text-lg leading-tight">Claude Code チップス集</h1>
-          <p class="text-xs text-slate-400">if(塾) ワークフロー講座 資料</p>
+          <h1 class="font-bold text-xl leading-tight text-slate-900">Claude Code チップス集</h1>
+          <p class="text-sm text-slate-500 mt-0.5">if(塾) ワークフロー講座 資料</p>
         </div>
       </div>
-      <div class="text-xs text-slate-500 hidden md:block">
+      <div class="text-sm text-slate-400 hidden md:block">
         最終更新: <span id="last-updated">—</span>
       </div>
     </div>
   </header>
 
-  <section class="max-w-6xl mx-auto px-6 py-10">
-    <h2 class="text-3xl md:text-4xl font-black mb-4 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-      ワークフローの部品を、組み合わせて作る。
+  <section class="max-w-5xl mx-auto px-6 pt-16 pb-12">
+    <h2 class="text-3xl md:text-5xl font-black mb-8 leading-tight text-slate-900 tracking-tight">
+      ワークフローの<span class="text-cyan-600">部品</span>を、<br class="md:hidden" />組み合わせて作る。
     </h2>
-    <p class="text-slate-300 leading-relaxed max-w-3xl">
-      この講座は「これを作ってください」と決めつけません。代わりに、自動化ワークフローを構成する<strong class="text-white">小さな部品（チップス）</strong>を大量に提供します。<br />
+    <p class="text-lg text-slate-700 leading-loose tracking-wide max-w-3xl">
+      この講座は「これを作ってください」と決めつけません。<br />
+      代わりに、自動化ワークフローを構成する<strong class="text-slate-900 font-bold">小さな部品（チップス）</strong>を大量に提供します。<br />
       あなたは必要なチップスを選び、プロンプトをコピーしてClaude Codeに貼り付け、組み合わせて自分だけのワークフローを構築できます。
     </p>
 
-    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="p-4 rounded-lg border border-green-500/30 bg-green-500/5">
-        <div class="text-xs font-bold text-green-400 mb-1">Lv.1</div>
-        <div class="font-bold mb-1">プロンプトのみ</div>
-        <p class="text-sm text-slate-400">Claude Codeに指示を出すだけで実装できる。追加サービス不要。</p>
+    <div class="mt-14 grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div class="p-6 rounded-2xl border-2 border-green-300 bg-green-50">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-sm font-black text-green-700 tracking-wider">Lv.1</span>
+          <span class="w-2 h-2 rounded-full bg-green-500"></span>
+        </div>
+        <div class="font-bold text-lg text-slate-900 mb-2">プロンプトのみ</div>
+        <p class="text-sm text-slate-600 leading-relaxed">Claude Codeに指示を出すだけで実装できる。追加サービス不要。</p>
       </div>
-      <div class="p-4 rounded-lg border border-blue-500/30 bg-blue-500/5">
-        <div class="text-xs font-bold text-blue-400 mb-1">Lv.2</div>
-        <div class="font-bold mb-1">API接続が必要</div>
-        <p class="text-sm text-slate-400">Gemini / OpenAI 等のAPIキー取得と .env 設定が必要。</p>
+      <div class="p-6 rounded-2xl border-2 border-blue-300 bg-blue-50">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-sm font-black text-blue-700 tracking-wider">Lv.2</span>
+          <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+        </div>
+        <div class="font-bold text-lg text-slate-900 mb-2">API接続が必要</div>
+        <p class="text-sm text-slate-600 leading-relaxed">Gemini / OpenAI 等のAPIキー取得と .env 設定が必要。</p>
       </div>
-      <div class="p-4 rounded-lg border border-purple-500/30 bg-purple-500/5">
-        <div class="text-xs font-bold text-purple-400 mb-1">Lv.3</div>
-        <div class="font-bold mb-1">環境構築が必要</div>
-        <p class="text-sm text-slate-400">ローカルバイナリ、OAuth、FTPなど追加セットアップが必要。</p>
+      <div class="p-6 rounded-2xl border-2 border-purple-300 bg-purple-50">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-sm font-black text-purple-700 tracking-wider">Lv.3</span>
+          <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+        </div>
+        <div class="font-bold text-lg text-slate-900 mb-2">環境構築が必要</div>
+        <p class="text-sm text-slate-600 leading-relaxed">DB接続、GitHub / Vercel の環境変数登録、ローカルバイナリ、OAuth、FTP など追加セットアップが必要。</p>
       </div>
     </div>
   </section>
 
-  <section class="max-w-6xl mx-auto px-6 pb-6 sticky top-[76px] bg-slate-950/95 backdrop-blur z-40 py-4 border-b border-slate-800">
+  <section class="max-w-5xl mx-auto px-6 pb-6 sticky top-[88px] bg-white/95 backdrop-blur z-40 py-5 border-b border-slate-200">
     <div class="flex flex-wrap gap-3 items-center">
       <input
         id="search-input"
         type="text"
         placeholder="🔍 キーワード検索 (例: 画像, 投稿, Gemini)"
-        class="flex-1 min-w-[240px] bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-cyan-500"
+        class="flex-1 min-w-[240px] bg-slate-50 border-2 border-slate-200 rounded-lg px-4 py-3 text-base focus:outline-none focus:border-cyan-500 focus:bg-white transition"
       />
-      <select id="category-filter" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+      <select id="category-filter" class="bg-white border-2 border-slate-200 rounded-lg px-4 py-3 text-base focus:outline-none focus:border-cyan-500">
         <option value="">全カテゴリ</option>
       </select>
-      <select id="level-filter" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+      <select id="level-filter" class="bg-white border-2 border-slate-200 rounded-lg px-4 py-3 text-base focus:outline-none focus:border-cyan-500">
         <option value="">全難易度</option>
       </select>
-      <button id="reset-btn" class="px-3 py-2 text-sm border border-slate-700 rounded-lg hover:bg-slate-800">リセット</button>
-      <div class="text-xs text-slate-400 ml-auto">
+      <select id="sort-select" class="bg-white border-2 border-slate-200 rounded-lg px-4 py-3 text-base focus:outline-none focus:border-cyan-500">
+        <option value="level">並び順: レベル順</option>
+        <option value="category">並び順: カテゴリ順</option>
+        <option value="title">並び順: 名前順</option>
+        <option value="source">並び順: 出典順</option>
+      </select>
+      <button id="reset-btn" class="px-4 py-3 text-base border-2 border-slate-200 rounded-lg hover:bg-slate-50 transition">リセット</button>
+      <div class="text-sm text-slate-500 ml-auto font-medium">
         <span id="tip-count">0</span> / <span id="total-count">0</span> チップス
       </div>
     </div>
+    <div id="category-nav" class="flex flex-wrap gap-2 mt-4"></div>
   </section>
 
-  <section class="max-w-6xl mx-auto px-6 pb-6">
-    <div id="category-nav" class="flex flex-wrap gap-2 mt-2"></div>
-  </section>
-
-  <main class="max-w-6xl mx-auto px-6 pb-20">
-    <div id="tips-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-    <div id="empty-state" class="hidden text-center py-20 text-slate-500">
-      <div class="text-5xl mb-4">🫥</div>
-      <p>該当するチップスが見つかりませんでした。</p>
+  <main class="max-w-5xl mx-auto px-6 pb-24 pt-8">
+    <div id="tips-list" class="flex flex-col gap-5"></div>
+    <div id="empty-state" class="hidden text-center py-24 text-slate-400">
+      <div class="text-6xl mb-4">🫥</div>
+      <p class="text-lg">該当するチップスが見つかりませんでした。</p>
     </div>
   </main>
 
-  <footer class="border-t border-slate-800 py-8 text-center text-sm text-slate-500">
-    <p>Claude Code ワークフロー チップス集 — if(塾) AI講座</p>
-    <p class="mt-1">Built with Claude Code · <a href="https://github.com/Getabako" class="text-cyan-400 hover:underline">GitHub</a></p>
+  <footer class="border-t border-slate-200 py-10 text-center text-sm text-slate-500 bg-slate-50">
+    <p class="font-medium">Claude Code ワークフロー チップス集 — if(塾) AI講座</p>
+    <p class="mt-2">Built with Claude Code · <a href="https://github.com/Getabako/AILesson" class="text-cyan-600 hover:underline">GitHub</a></p>
   </footer>
 
-  <div id="toast" class="fixed bottom-6 right-6 bg-cyan-600 text-white px-4 py-3 rounded-lg shadow-lg translate-y-20 opacity-0 transition-all pointer-events-none">
+  <div id="toast" class="fixed bottom-6 right-6 bg-cyan-600 text-white px-5 py-3 rounded-lg shadow-xl translate-y-20 opacity-0 transition-all pointer-events-none text-base font-medium">
     ✓ プロンプトをコピーしました
   </div>
 

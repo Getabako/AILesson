@@ -2,13 +2,17 @@
   const res = await fetch('tips.json');
   const data = await res.json();
 
+  const LEVEL_ORDER = { prompt: 1, api: 2, infra: 3 };
+
   const state = {
     tips: data.tips,
     categories: data.categories,
     levels: data.levels,
     search: '',
     category: '',
-    level: ''
+    level: '',
+    sort: 'level',
+    openIds: new Set()
   };
 
   document.getElementById('last-updated').textContent = data.meta.lastUpdated;
@@ -43,7 +47,7 @@
 
   function pill(label, id, active) {
     const el = document.createElement('button');
-    el.className = 'category-pill text-xs px-3 py-1.5 rounded-full border border-slate-700 text-slate-300';
+    el.className = 'category-pill';
     el.textContent = label;
     el.dataset.cat = id;
     if (active) el.classList.add('active');
@@ -65,15 +69,17 @@
   });
   catFilter.addEventListener('change', e => setCat(e.target.value));
   lvFilter.addEventListener('change', e => { state.level = e.target.value; render(); });
+  document.getElementById('sort-select').addEventListener('change', e => { state.sort = e.target.value; render(); });
   document.getElementById('reset-btn').addEventListener('click', () => {
-    state.search = ''; state.category = ''; state.level = '';
+    state.search = ''; state.category = ''; state.level = ''; state.sort = 'level';
     document.getElementById('search-input').value = '';
     catFilter.value = ''; lvFilter.value = '';
+    document.getElementById('sort-select').value = 'level';
     setCat('');
   });
 
   function filter() {
-    return state.tips.filter(t => {
+    let result = state.tips.filter(t => {
       if (state.category && t.category !== state.category) return false;
       if (state.level && t.level !== state.level) return false;
       if (state.search) {
@@ -82,21 +88,38 @@
       }
       return true;
     });
+
+    const catOrder = {};
+    state.categories.forEach((c, i) => { catOrder[c.id] = i; });
+
+    result.sort((a, b) => {
+      switch (state.sort) {
+        case 'level':
+          if (LEVEL_ORDER[a.level] !== LEVEL_ORDER[b.level]) return LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level];
+          return catOrder[a.category] - catOrder[b.category];
+        case 'category':
+          if (catOrder[a.category] !== catOrder[b.category]) return catOrder[a.category] - catOrder[b.category];
+          return LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level];
+        case 'title':
+          return a.title.localeCompare(b.title, 'ja');
+        case 'source':
+          return a.source.localeCompare(b.source, 'ja');
+        default:
+          return 0;
+      }
+    });
+    return result;
   }
 
-  function levelMeta(id) {
-    return state.levels.find(l => l.id === id);
-  }
-  function catMeta(id) {
-    return state.categories.find(c => c.id === id);
-  }
+  function levelMeta(id) { return state.levels.find(l => l.id === id); }
+  function catMeta(id) { return state.categories.find(c => c.id === id); }
 
   function render() {
     const filtered = filter();
     document.getElementById('tip-count').textContent = filtered.length;
-    const grid = document.getElementById('tips-grid');
+    const list = document.getElementById('tips-list');
     const empty = document.getElementById('empty-state');
-    grid.innerHTML = '';
+    list.innerHTML = '';
     if (filtered.length === 0) {
       empty.classList.remove('hidden');
       return;
@@ -106,43 +129,67 @@
     filtered.forEach(t => {
       const cat = catMeta(t.category);
       const lv = levelMeta(t.level);
+      const isOpen = state.openIds.has(t.id);
+      const lvShort = 'Lv.' + LEVEL_ORDER[t.level] + ' ' + lv.label.replace(/^Lv\.\d\s+/, '');
+
       const card = document.createElement('article');
-      card.className = 'tip-card bg-slate-900/50 border border-slate-800 rounded-xl p-5 flex flex-col gap-3';
+      card.className = 'tip-card' + (isOpen ? ' is-open' : '');
+      card.dataset.id = t.id;
       card.innerHTML = `
-        <div class="flex items-start justify-between gap-3">
-          <h3 class="font-bold text-lg leading-tight flex-1">${escapeHtml(t.title)}</h3>
-          <span class="text-xs px-2 py-1 rounded border level-${t.level} shrink-0 font-bold">${escapeHtml(lv.label.replace(/^Lv\.\d\s+/, 'Lv.' + ({prompt:1,api:2,infra:3}[t.level]) + ' '))}</span>
+        <div class="tip-header">
+          <h3 class="tip-title">${escapeHtml(t.title)}</h3>
+          <div class="flex items-center gap-3 shrink-0">
+            <span class="level-badge level-${t.level}">${escapeHtml(lvShort)}</span>
+            <span class="chevron">▶</span>
+          </div>
         </div>
-        <div class="flex flex-wrap gap-2 text-xs">
-          <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300">${cat.icon} ${escapeHtml(cat.label)}</span>
-          <span class="px-2 py-0.5 rounded bg-slate-800/50 text-slate-400">出典: ${escapeHtml(t.source)}</span>
-        </div>
-        <p class="text-sm text-slate-300 leading-relaxed">${escapeHtml(t.summary)}</p>
-        <div class="text-xs text-slate-400 border-l-2 border-cyan-500/40 pl-3">
-          💡 <strong class="text-slate-300">使い所:</strong> ${escapeHtml(t.usage)}
-        </div>
-        <details class="mt-1">
-          <summary class="cursor-pointer text-sm font-medium text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
-            <span class="chevron">▶</span> プロンプト例を見る
-          </summary>
-          <div class="mt-3 relative">
-            <button class="copy-btn absolute top-2 right-2 text-xs bg-slate-700 hover:bg-cyan-600 text-white px-3 py-1 rounded transition-colors" data-prompt="${encodeURIComponent(t.prompt)}">コピー</button>
+        <div class="tip-body">
+          <div class="tip-meta-row">
+            <span class="tip-chip">${cat.icon} ${escapeHtml(cat.label)}</span>
+            <span class="tip-chip">出典: ${escapeHtml(t.source)}</span>
+          </div>
+          <div class="tip-summary">${escapeHtml(t.summary)}</div>
+          <div class="tip-usage">💡 <strong>使い所:</strong> ${escapeHtml(t.usage)}</div>
+          <button class="tip-prompt-toggle" data-action="toggle-prompt">
+            <span class="prompt-chevron">▶</span> プロンプト例を見る
+          </button>
+          <div class="prompt-wrapper">
+            <button class="copy-btn" data-prompt="${encodeURIComponent(t.prompt)}">コピー</button>
             <pre class="prompt-block">${escapeHtml(t.prompt)}</pre>
           </div>
-        </details>
+        </div>
       `;
-      grid.appendChild(card);
-    });
+      list.appendChild(card);
 
-    grid.querySelectorAll('.copy-btn').forEach(btn => {
-      btn.addEventListener('click', async e => {
-        e.preventDefault();
-        const text = decodeURIComponent(btn.dataset.prompt);
+      card.querySelector('.tip-header').addEventListener('click', () => {
+        if (state.openIds.has(t.id)) {
+          state.openIds.delete(t.id);
+          card.classList.remove('is-open');
+        } else {
+          state.openIds.add(t.id);
+          card.classList.add('is-open');
+        }
+      });
+
+      const promptToggle = card.querySelector('[data-action="toggle-prompt"]');
+      const promptWrapper = card.querySelector('.prompt-wrapper');
+      const promptChevron = card.querySelector('.prompt-chevron');
+      promptToggle.addEventListener('click', e => {
+        e.stopPropagation();
+        const opened = promptWrapper.classList.toggle('is-open');
+        promptChevron.textContent = opened ? '▼' : '▶';
+        promptToggle.firstChild.nodeValue = '';
+      });
+
+      const copyBtn = card.querySelector('.copy-btn');
+      copyBtn.addEventListener('click', async e => {
+        e.stopPropagation();
+        const text = decodeURIComponent(copyBtn.dataset.prompt);
         try {
           await navigator.clipboard.writeText(text);
           showToast('✓ プロンプトをコピーしました');
-          btn.textContent = '✓ コピー済';
-          setTimeout(() => { btn.textContent = 'コピー'; }, 2000);
+          copyBtn.textContent = '✓ コピー済';
+          setTimeout(() => { copyBtn.textContent = 'コピー'; }, 2000);
         } catch {
           showToast('⚠ コピーに失敗しました');
         }
