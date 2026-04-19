@@ -1,0 +1,456 @@
+{
+  "meta": {
+    "title": "Claude Code ワークフロー チップス集",
+    "description": "if(塾) Claude Code講座用。ワークフローを構成する再利用可能な部品（チップス）を集約。学習者は必要なチップスを組み合わせて独自の自動化を構築できる。",
+    "lastUpdated": "2026-04-19"
+  },
+  "categories": [
+    { "id": "research", "label": "情報収集・調査", "icon": "🔍" },
+    { "id": "content", "label": "文章・企画生成", "icon": "✍️" },
+    { "id": "image", "label": "画像生成・加工", "icon": "🎨" },
+    { "id": "video", "label": "動画生成・編集", "icon": "🎬" },
+    { "id": "audio", "label": "音声・ナレーション", "icon": "🎙️" },
+    { "id": "post", "label": "自動投稿", "icon": "📢" },
+    { "id": "notify", "label": "通知・連携", "icon": "🔔" },
+    { "id": "data", "label": "データ分析・レポート", "icon": "📊" },
+    { "id": "schedule", "label": "スケジュール実行", "icon": "⏰" },
+    { "id": "util", "label": "ユーティリティ", "icon": "🛠️" }
+  ],
+  "levels": [
+    { "id": "prompt", "label": "Lv.1 プロンプトのみ", "color": "green", "desc": "Claude Codeに指示を出すだけで実装できる。追加のAPIキーやサービス登録は不要。" },
+    { "id": "api", "label": "Lv.2 API接続が必要", "color": "blue", "desc": "外部APIキー（Gemini, OpenAIなど）の取得と.envへの設定が必要。" },
+    { "id": "infra", "label": "Lv.3 環境構築が必要", "color": "purple", "desc": "ローカルバイナリ、ブラウザ自動化、OAuth認証、FTPなど、非自明な環境構築が必要。" }
+  ],
+  "tips": [
+    {
+      "id": "research-rss",
+      "title": "RSSフィードで最新ニュース収集",
+      "category": "research",
+      "level": "prompt",
+      "summary": "複数の公式RSSフィードから最新記事を自動取得し、日付でフィルタリングする。",
+      "source": "Sales_WorkFlow / StockWorkFlow",
+      "usage": "AIニュース、競合動向、業界トレンドを自動で追いかけたい時に使う。",
+      "prompt": "Node.jsで、以下のRSSフィードから過去24時間以内の記事を取得し、タイトル・URL・公開日時・概要をJSONに保存するスクリプトを作ってください。\n\nフィード一覧:\n- NVIDIA: https://nvidianews.nvidia.com/releases/rss\n- Microsoft: https://news.microsoft.com/feed/\n- Google AI Blog: https://blog.google/technology/ai/rss/\n\n要件:\n- rss-parserパッケージを使用\n- 24時間以内の記事のみ抽出\n- 出力先: data/news_YYYY-MM-DD.json\n- エラー時はそのフィードをスキップして次に進む"
+    },
+    {
+      "id": "research-web",
+      "title": "Webスクレイピングで情報収集",
+      "category": "research",
+      "level": "prompt",
+      "summary": "Playwrightで指定URLのページをレンダリングし、タイトル・本文・画像URLなどを抽出する。",
+      "source": "DailyInstagramWorkFlow",
+      "usage": "RSS非対応のサイトから最新情報を抜き出したい時。",
+      "prompt": "Playwrightを使って、指定URLの記事ページから以下の情報を抽出するスクリプトを作ってください。\n\n抽出項目:\n- ページタイトル (h1)\n- 公開日時 (metaタグ or timeタグ)\n- 本文テキスト (article要素)\n- 最初の画像URL\n- 内部リンク一覧\n\n要件:\n- CLIで URL を引数として受け取る\n- headless: true で実行\n- JSON形式で標準出力に出す\n- User-Agentを最新のChromeに設定"
+    },
+    {
+      "id": "research-trend",
+      "title": "AIがトレンドトピックを自動発案",
+      "category": "research",
+      "level": "api",
+      "summary": "過去の投稿履歴と最新ニュースをGeminiに投げて、被らない新規トピックを提案させる。",
+      "source": "DailyInstagramWorkFlow / NotePost",
+      "usage": "毎日の投稿で「今日何書こう」を自動化したい時。",
+      "prompt": "Gemini 2.0 Flash APIを使って、トレンドリサーチャーを作ってください。\n\n入力:\n- カテゴリ（例: ai-news, education, business）\n- 過去投稿履歴（JSON配列、タイトルと日付）\n- 最新ニュース（前チップスで取得したJSON）\n\n出力 (JSON):\n- topic: 投稿トピック（1行）\n- details: 詳細説明（3-5文）\n- keywords: キーワード配列（3-5個）\n- novelty_score: 過去投稿との重複なさ（0-100）\n\n要件:\n- システムプロンプトで「過去投稿と重複しないこと」を強く指示\n- 失敗時3回までリトライ\n- .envからGEMINI_API_KEY読み込み"
+    },
+    {
+      "id": "research-github",
+      "title": "GitHubリポジトリから技術記事生成",
+      "category": "research",
+      "level": "api",
+      "summary": "GitHubのREADMEと主要ソースを読み込み、そのツールの紹介記事を自動生成する。",
+      "source": "NotePost",
+      "usage": "新しいOSSを見つけた時に紹介記事を素早く書きたい。",
+      "prompt": "GitHubリポジトリURLを受け取り、紹介記事を生成するスクリプトを作ってください。\n\n処理フロー:\n1. GitHub API でREADME.md を取得\n2. 言語別の主要ファイル上位3つを取得（package.json, src/index.ts など）\n3. これらをコンテキストとしてGemini APIに投げ、以下の構成で記事を生成:\n   - タイトル（検索されやすい日本語）\n   - 概要（3文）\n   - 主な機能（箇条書き5つ）\n   - インストール手順\n   - 使用例\n   - 注意点\n4. Markdown形式で保存\n\n入力: npm run tool-blog -- https://github.com/user/repo"
+    },
+    {
+      "id": "research-notebooklm",
+      "title": "NotebookLMを使った根拠付き調査",
+      "category": "research",
+      "level": "infra",
+      "summary": "NotebookLMにアップロード済みの資料に対して、引用付きの回答を取得する（ハルシネーション防止）。",
+      "source": "notebooklm-skill-master",
+      "usage": "社内資料や大量PDFに基づいた正確な回答が必要な時。",
+      "prompt": "NotebookLM連携用のClaude Code Skillを構築してください。\n\n前提:\n- Patchright (Playwrightのstealth版) でブラウザ操作\n- Google OAuthで一度ログインし、セッションを ~/.config/ に永続化\n\n機能:\n1. setup: 初回ブラウザログイン\n2. add-notebook: 共有リンクを受け取りJSONライブラリに保存\n3. query: 質問文を受け取り、該当ノートブックで検索→回答と引用元を取得\n4. list: 保存済みノートブック一覧\n\n保存先: ~/.notebooklm-skill/library.json"
+    },
+    {
+      "id": "content-article",
+      "title": "カテゴリ別ブログ記事生成",
+      "category": "content",
+      "level": "api",
+      "summary": "AI/教育/活動報告などカテゴリ別のテンプレートプロンプトで、3〜5セクションの記事を自動生成。",
+      "source": "NotePost",
+      "usage": "note.comやブログに毎日記事を投稿したい。",
+      "prompt": "Geminiで記事を生成するスクリプトを作ってください。\n\nカテゴリ別プロンプトテンプレート:\n- ai-news: 「最新のAIニュースを${topic}について解説する記事」\n- education: 「プログラミング初心者向けに${topic}を解説する記事」\n- activity: 「教室での${topic}の取り組みを紹介する記事」\n\n出力フォーマット（JSON→Markdown変換）:\n- title\n- sections: [{ heading, body, image_prompt }]\n- tags: 配列\n\n要件:\n- CLI: npm run generate -- --category=ai-news --topic=\"...\"\n- image_prompt は後続の画像生成チップスで使える形式\n- 出力: content/articles/YYYY-MM-DD-${slug}.md"
+    },
+    {
+      "id": "content-script",
+      "title": "動画用シナリオ・台詞生成",
+      "category": "content",
+      "level": "api",
+      "summary": "動画企画をシーン分割し、キャラクターの台詞・字幕・背景説明を含む構造化JSONで出力。",
+      "source": "ShortMovie",
+      "usage": "YouTube ShortsやReel用の台本を毎日自動生成したい。",
+      "prompt": "DeepSeek or Gemini APIで、ショート動画のシナリオを生成するスクリプトを作ってください。\n\n入力: コンセプト文字列（例: \"小学生にプログラミングの楽しさを伝える\"）\n\n出力 (JSON):\n{\n  \"title\": \"...\",\n  \"theme\": \"...\",\n  \"mood\": \"明るい\",\n  \"total_duration\": 45,\n  \"scenes\": [\n    {\n      \"scene_number\": 1,\n      \"duration\": 3.5,\n      \"background_prompt\": \"画像生成用プロンプト\",\n      \"dialogue\": [\n        { \"character\": \"ロジック\", \"text\": \"...\", \"emotion\": \"happy\" }\n      ],\n      \"subtitle\": \"表示する字幕\"\n    }\n  ],\n  \"hashtags\": [\"#...\"]\n}\n\n要件:\n- 5〜10シーン、各2〜5秒\n- 行動経済学（損失回避・社会的証明）を台詞に織り込む\n- JSON mode で出力"
+    },
+    {
+      "id": "content-yaml-slides",
+      "title": "YAMLからMarpスライド生成",
+      "category": "content",
+      "level": "prompt",
+      "summary": "構造化YAMLを読み込み、Marp形式のMarkdownスライドに変換する。",
+      "source": "SlideMovie_WorkFlow-main",
+      "usage": "講義資料やプレゼンを機械的に量産したい。",
+      "prompt": "Pythonで、YAMLファイルを読み込みMarp用Markdownスライドを生成するスクリプトを作ってください。\n\n入力YAML:\n```yaml\ntopic: \"タイトル\"\ntheme: \"default\"\nslides:\n  - title: \"スライド1\"\n    content: \"本文（Markdown記法可）\"\n    notes: \"スピーカーノート\"\n```\n\n出力Markdown:\n- 先頭に Marpヘッダー (---\\nmarp: true\\n---)\n- 各スライドは --- で区切る\n- notes は <!-- _notes: ... --> にする\n\n要件:\n- 入出力パスをCLI引数で指定\n- 1スライドあたり5-7行を超えたら警告を出す"
+    },
+    {
+      "id": "content-slide-edit",
+      "title": "自然言語でスライド編集",
+      "category": "content",
+      "level": "api",
+      "summary": "「スライド8を短くして」などの日本語指示をAIに解釈させ、YAMLを自動修正する。",
+      "source": "SlideMovie_WorkFlow-main",
+      "usage": "既存のスライド資料を素早く修正したい時。",
+      "prompt": "Gemini APIで、自然言語編集コマンドをYAMLパッチに変換するスクリプトを作ってください。\n\n入力:\n- 現在のYAMLファイル\n- 編集指示（例: 「スライド3を2行にまとめて」「スライド5の後に新しいスライドを追加して『AIの未来』について書いて」）\n\n処理:\n1. 現在のYAMLをAIに見せる\n2. 指示を解釈し、修正後のYAML全体を出力させる\n3. diffを表示してユーザーに確認\n4. OKなら上書き保存\n\n要件:\n- YAMLのキー順序は維持\n- diffはjsdiffライブラリで色付き表示"
+    },
+    {
+      "id": "content-summarize",
+      "title": "長文要約・重要ポイント抽出",
+      "category": "content",
+      "level": "api",
+      "summary": "長文コンテンツをGeminiで3行要約・5つの重要ポイントに圧縮。",
+      "source": "ai-webapp-course-app",
+      "usage": "会議議事録、論文、記事の要約を自動化したい。",
+      "prompt": "テキストファイルを読み込み、Gemini APIで要約するCLIツールを作ってください。\n\n入力: ファイルパス or 標準入力\n\n出力:\n- 3行要約\n- 重要ポイント5つ（箇条書き）\n- アクション項目（もし含まれていれば）\n- 元文書のトーン（フォーマル/カジュアル/技術的）\n\n要件:\n- 長文は8000文字ごとにチャンク分割 → 各要約 → 最終統合\n- 出力形式は --format json または --format markdown を選択可能"
+    },
+    {
+      "id": "image-html-render",
+      "title": "HTML/CSSテンプレを画像化",
+      "category": "image",
+      "level": "prompt",
+      "summary": "HTML/CSSテンプレートに動的テキストを埋めて、Puppeteerで高品質PNGに変換する。",
+      "source": "DailyInstagramWorkFlow",
+      "usage": "Instagramカルーセルや引用画像を自動生成したい。",
+      "prompt": "PuppeteerでHTMLテンプレートを画像化するスクリプトを作ってください。\n\n入力:\n- templatePath: assets/templates/carousel-{n}.html\n- variables: { title: \"...\", body: \"...\", author: \"...\" }\n- outputPath: out/slide-{n}.png\n\n処理:\n1. HTMLを読み込み、{{title}} などのプレースホルダを置換\n2. Puppeteerで 1080x1350 のビューポートでレンダリング\n3. page.screenshot({ type: 'png', omitBackground: false })\n4. 日本語フォント（Noto Sans JP）をGoogle Fontsから読み込み\n\n要件:\n- 並列処理（複数枚同時生成）\n- デバッグモードで HTML を保存しておく"
+    },
+    {
+      "id": "image-gemini",
+      "title": "Gemini画像生成（プロンプト to 画像）",
+      "category": "image",
+      "level": "api",
+      "summary": "Gemini 2.5 Flash Image APIで、テキストプロンプトから画像を生成。縦横比指定可能。",
+      "source": "DailyInstagramWorkFlow / SlideMovie / ShortMovie",
+      "usage": "ブログのサムネや動画の背景素材が必要な時。",
+      "prompt": "Gemini 2.5 Flash Image APIで画像生成するユーティリティを作ってください。\n\nAPI: gemini-2.5-flash-image-preview (generateContent)\n\n関数シグネチャ:\n```ts\ngenerateImage({\n  prompt: string,\n  aspectRatio: '1:1' | '3:4' | '9:16' | '16:9',\n  outputPath: string,\n  referenceImages?: string[]  // スタイル参照用\n}): Promise<void>\n```\n\n要件:\n- レスポンスから inlineData.data (base64) を取り出しファイル保存\n- referenceImages が指定されたらプロンプトに「これらの画像のスタイルを参考に」を付与\n- 失敗時は3回リトライ\n- 日本語プロンプトは英訳してから送信（オプション）"
+    },
+    {
+      "id": "image-composite",
+      "title": "キャラクター合成（背景+キャラ）",
+      "category": "image",
+      "level": "prompt",
+      "summary": "背景画像にキャラクターPNGをアルファ合成し、位置・スケールを指定できる。",
+      "source": "DailyInstagramWorkFlow / ShortMovie",
+      "usage": "スライドや動画のシーンに一貫したキャラクターを登場させたい。",
+      "prompt": "Sharpを使って、キャラクター画像を背景に合成するユーティリティを作ってください。\n\n関数:\n```ts\ncompose({\n  background: string,       // 背景画像パス\n  character: string,        // キャラPNG（透過）\n  position: { x: number, y: number },\n  scale: number,            // 1.0 = 原寸\n  output: string\n}): Promise<void>\n```\n\n実装:\n- sharp(background).composite([{ input: resized, left: x, top: y }]).toFile(output)\n- scale に応じて sharp().resize() でキャラをリサイズ\n- 出力フォーマットは背景と同じに揃える\n\n複数キャラ同時合成にも対応（配列受け取り）"
+    },
+    {
+      "id": "image-remove-bg",
+      "title": "背景削除",
+      "category": "image",
+      "level": "prompt",
+      "summary": "Python PILでキャラ写真の背景を削除し、合成素材として使える透過PNGに変換。",
+      "source": "MovieEdit",
+      "usage": "自撮り写真をキャラクター素材として使いたい時。",
+      "prompt": "Pythonで、画像の背景を削除して透過PNGを出力するスクリプトを作ってください。\n\n要件:\n- rembgライブラリを使用（内部でU²-Netを利用）\n- CLI: python remove_bg.py input.jpg [--output output.png]\n- 出力指定なしなら {input}_no_bg.png に自動保存\n- バッチ処理: ディレクトリ指定で一括処理 python remove_bg.py ./photos/ --batch\n\nインストール: pip install rembg[cpu] pillow"
+    },
+    {
+      "id": "image-quality-gate",
+      "title": "生成画像の品質チェック（AIジャッジ）",
+      "category": "image",
+      "level": "api",
+      "summary": "生成した画像をGemini Visionに投げて、ブランド準拠・品質・テキスト有無などを自動評価。",
+      "source": "DailyInstagramWorkFlow",
+      "usage": "AI画像を大量生成する時に、手動レビューを減らしたい。",
+      "prompt": "Gemini Vision APIで画像品質ゲートを実装してください。\n\n入力: 画像パス + ブランドガイドライン（テキスト）\n\n評価項目 (JSON出力):\n- brand_compliance: 0-100（色・ロゴ・トーンがガイドに合致）\n- text_overlay_present: boolean（画像内に文字が入っていないか）\n- composition_quality: 0-100（構図・バランス）\n- contrast_ok: boolean\n- rejection_reason: string | null\n\n閾値: brand_compliance >= 70 AND text_overlay_present == false → 合格\n不合格なら再生成を呼び出し、最大3回までリトライ"
+    },
+    {
+      "id": "image-ftp-upload",
+      "title": "FTPで画像をホスティング",
+      "category": "image",
+      "level": "infra",
+      "summary": "生成画像をFTPサーバーにアップロードし、記事や投稿に埋め込む公開URLを取得。",
+      "source": "DailyInstagramWorkFlow / NotePost",
+      "usage": "note.com等で外部画像URLが必要な時。",
+      "prompt": "basic-ftp (Node.js) を使ったFTPアップローダーを作ってください。\n\n関数:\n```ts\nuploadToFtp(localPath: string, remotePath: string): Promise<string>\n// 戻り値: 公開URL（https://{host}/{remotePath}）\n```\n\n.env 項目:\n- FTP_HOST\n- FTP_USER\n- FTP_PASS\n- FTP_PUBLIC_BASE_URL\n\n要件:\n- secure: true (FTPS) 対応\n- リモートディレクトリがなければ自動作成 (ensureDir)\n- アップロード後にHEADリクエストで200を確認\n- 失敗時はリトライ3回"
+    },
+    {
+      "id": "video-remotion",
+      "title": "Remotionで動画レンダリング",
+      "category": "video",
+      "level": "infra",
+      "summary": "ReactコンポーネントとしてCompositionを書き、MP4動画として書き出す。",
+      "source": "DailyInstagramWorkFlow / ShortMovie / SlideMovie",
+      "usage": "プログラムで動画を量産したい。",
+      "prompt": "Remotionプロジェクトをセットアップし、シーン配列から動画を生成するコンポーネントを作ってください。\n\n構成:\n- src/Root.tsx: Composition定義\n- src/Video.tsx: メインシーケンス\n- src/components/Scene.tsx: 単一シーン（背景+キャラ+字幕+音声）\n\n入力: scenes.json\n```json\n[\n  {\n    \"duration_frames\": 90,\n    \"background\": \"out/bg-1.png\",\n    \"character\": { \"image\": \"jukucho.png\", \"x\": 50, \"y\": 300 },\n    \"audio\": \"out/audio-1.mp3\",\n    \"subtitle\": \"こんにちは！\"\n  }\n]\n```\n\nコマンド:\n- npm run studio: プレビュー\n- npm run render -- --props=scenes.json: MP4書き出し\n\n出力: 1080x1920 / 30fps / H.264"
+    },
+    {
+      "id": "video-marp-images",
+      "title": "Marpで各スライドを画像化",
+      "category": "video",
+      "level": "infra",
+      "summary": "Marpスライドの各ページをPNGとして書き出し、動画の素材にする。",
+      "source": "SlideMovie_WorkFlow-main",
+      "usage": "スライド動画（ゆっくり解説風）を作りたい時の前処理。",
+      "prompt": "Marp CLIを使って、Markdownスライドを個別PNG画像に書き出すスクリプトを作ってください。\n\n前提:\n- `npm i -g @marp-team/marp-cli` でインストール済み\n- スライドファイル: slides/presentation.md\n\n処理:\n```bash\nmarp slides/presentation.md --images png --image-scale 2 -o output/\n```\n出力: output/presentation.001.png, 002.png, ...\n\n追加処理:\n- 画像一覧を JSON にする (slide-images.json)\n- 各画像のファイルパスと順序を記録（次のチップスで使う）"
+    },
+    {
+      "id": "video-subtitle-sync",
+      "title": "音声とテロップの自動同期",
+      "category": "video",
+      "level": "prompt",
+      "summary": "音声ファイルのdurationを取得し、テロップの表示タイミングを計算してJSONに保存。",
+      "source": "SlideMovie_WorkFlow-main",
+      "usage": "自動生成音声に合わせて字幕を自動タイミング調整したい。",
+      "prompt": "ffprobe (fluent-ffmpeg) と pydub (Python) のどちらかで、音声ファイル配列からタイミングJSONを作るスクリプトを作ってください。\n\n入力:\n- audio_files: [\"audio/1.mp3\", \"audio/2.mp3\", ...]\n- subtitles: [\"こんにちは\", \"今日は...\", ...]\n\n処理:\n1. 各音声のdurationを取得\n2. 累積時間を計算\n3. 30fps基準でフレーム番号に変換\n\n出力 (video_timings.json):\n```json\n[\n  { \"index\": 0, \"text\": \"こんにちは\", \"audio\": \"audio/1.mp3\", \"start_frame\": 0, \"duration_frames\": 90 },\n  { \"index\": 1, \"text\": \"今日は...\", \"audio\": \"audio/2.mp3\", \"start_frame\": 90, \"duration_frames\": 150 }\n]\n```"
+    },
+    {
+      "id": "audio-openai-tts",
+      "title": "OpenAI TTSで台詞音声生成",
+      "category": "audio",
+      "level": "api",
+      "summary": "OpenAI Text-to-Speech APIで、キャラクター別に声を変えた音声ファイルを生成。",
+      "source": "ShortMovie",
+      "usage": "ショート動画のキャラ台詞を自動ナレーション化。",
+      "prompt": "OpenAI TTS APIで音声ファイルを生成するスクリプトを作ってください。\n\nモデル: tts-1 or tts-1-hd\n声: alloy, echo, fable, onyx, nova, shimmer（キャラごとに割り当て）\n\n関数:\n```ts\ngenerateVoice({\n  text: string,\n  character: 'logic' | 'trick',  // → voice にマッピング\n  outputPath: string,\n  speed?: number  // 0.25 - 4.0\n}): Promise<void>\n```\n\n要件:\n- 長文は文単位で分割して個別生成（API制限対応）\n- MP3形式で保存\n- 生成後 ffprobe で duration を取得し、次のタイミング計算に渡す"
+    },
+    {
+      "id": "audio-edge-tts",
+      "title": "Edge TTS（無料日本語音声）",
+      "category": "audio",
+      "level": "api",
+      "summary": "MicrosoftのEdge TTS（edge-tts）を使った無料・高品質な日本語音声合成。",
+      "source": "SlideMovie_WorkFlow-main",
+      "usage": "APIコストを抑えつつ日本語ナレーションを作りたい。",
+      "prompt": "Pythonのedge-ttsライブラリを使って、スライドごとのナレーション音声を生成するスクリプトを作ってください。\n\nインストール: pip install edge-tts\n\n声:\n- ja-JP-NanamiNeural (女性、落ち着いた)\n- ja-JP-KeitaNeural (男性)\n- ja-JP-AoiNeural (女性、若い)\n\nスクリプト:\n```python\nimport edge_tts\nimport asyncio\n\nasync def synth(text, voice, out):\n    communicate = edge_tts.Communicate(text, voice)\n    await communicate.save(out)\n```\n\n要件:\n- slides_with_notes.json を読み込み、各スライドのノート部分をMP3化\n- 並列実行で高速化（asyncio.gather）\n- APIキー不要、商用利用は要確認"
+    },
+    {
+      "id": "audio-transcript",
+      "title": "動画/音声→文字起こし",
+      "category": "audio",
+      "level": "api",
+      "summary": "音声ファイルをOpenAI Whisper APIで文字起こしし、タイムスタンプ付きJSONで出力。",
+      "source": "MovieEdit",
+      "usage": "既存動画から字幕を自動生成、会議録音の議事録化。",
+      "prompt": "OpenAI Whisper APIで音声を文字起こしするスクリプトを作ってください。\n\nモデル: whisper-1\nエンドポイント: /v1/audio/transcriptions\n\n入力: mp4 / mp3 / wav\n出力:\n```json\n{\n  \"text\": \"全文\",\n  \"segments\": [\n    { \"start\": 0.0, \"end\": 3.5, \"text\": \"...\" }\n  ]\n}\n```\n\n要件:\n- response_format: verbose_json でタイムスタンプ取得\n- 25MB制限超過時はffmpegで音声チャンク分割\n- 言語指定: language=\"ja\"\n- SRT形式エクスポート機能もつける"
+    },
+    {
+      "id": "post-note",
+      "title": "note.com自動投稿",
+      "category": "post",
+      "level": "infra",
+      "summary": "Playwrightでnote.comにログインし、記事フォームを入力して下書き作成or公開する。",
+      "source": "NotePost",
+      "usage": "note.comに毎日自動で記事投稿したい。",
+      "prompt": "Playwrightでnote.comへの自動投稿スクリプトを作ってください。\n\n.env:\n- NOTE_EMAIL\n- NOTE_PASSWORD\n\nフロー:\n1. https://note.com/login にアクセス\n2. メール・パスワード入力してログイン\n3. 新規記事作成ページに遷移 (/notes/new)\n4. タイトル入力\n5. 本文（Markdown → note.comのエディタ形式に変換）\n6. ハッシュタグ追加\n7. サムネ画像アップロード\n8. --draft フラグなら下書き保存、なければ公開\n\n要件:\n- セッションCookieは ~/.note-automation/state.json に保存し再利用\n- 2段階認証の場合は手動介入モードに切替（headless: false）\n- 失敗時のスクリーンショット保存"
+    },
+    {
+      "id": "post-instagram",
+      "title": "Instagram自動投稿（Graph API）",
+      "category": "post",
+      "level": "infra",
+      "summary": "Instagram Graph APIを使って、カルーセル・Reel・フィード投稿を自動化。",
+      "source": "DailyInstagramWorkFlow",
+      "usage": "自動生成したコンテンツをスケジュール投稿したい。",
+      "prompt": "Instagram Graph APIで自動投稿するスクリプトを作ってください。\n\n前提:\n- Instagram ビジネス/クリエイターアカウント\n- Facebook Developers でアプリ作成\n- 長期アクセストークン取得済み（.env: IG_ACCESS_TOKEN, IG_BUSINESS_ID）\n\n機能:\n1. 単一画像投稿: POST /{ig-user-id}/media → /{ig-user-id}/media_publish\n2. カルーセル: 各画像をCONTAINER作成 → CAROUSELコンテナでまとめる → publish\n3. Reel: media_type=REELS + video_url\n\nメディアURL:\n- 事前にFTPアップロード済みの画像/動画URL (前のチップス参照)\n\n要件:\n- 投稿前にdry-runモード（キャプションのみ表示）\n- 投稿成功したら投稿履歴JSONに保存"
+    },
+    {
+      "id": "post-scheduler",
+      "title": "投稿スケジューラ（タイミング調整）",
+      "category": "post",
+      "level": "prompt",
+      "summary": "投稿候補を曜日・時間帯で最適化し、キューに並べて順次実行。",
+      "source": "DailyInstagramWorkFlow",
+      "usage": "朝9時と夜8時など、エンゲージメントが高い時間に自動投稿したい。",
+      "prompt": "投稿キューを管理するNode.jsスクリプトを作ってください。\n\nキューファイル (queue.json):\n```json\n[\n  { \"id\": \"post-001\", \"scheduledAt\": \"2026-04-20T09:00:00+09:00\", \"status\": \"pending\", \"payload\": {...} }\n]\n```\n\n機能:\n- enqueue: 新規投稿を追加\n- tick: 現在時刻 >= scheduledAt のものを実行→status更新\n- list: pending/completed/failed の一覧表示\n\nCLI:\n- npm run queue:add -- --file=post.json --at=\"2026-04-20 09:00\"\n- npm run queue:tick （cronで毎分実行）\n- npm run queue:list\n\n要件:\n- タイムゾーンは Asia/Tokyo で統一\n- 失敗した投稿は最大3回までリトライ"
+    },
+    {
+      "id": "notify-discord",
+      "title": "Discord Webhook通知",
+      "category": "notify",
+      "level": "api",
+      "summary": "Discord Webhookでリッチな埋め込みメッセージを送信。完了報告・エラー通知に便利。",
+      "source": "Sales_WorkFlow / 仕事管理",
+      "usage": "自動化ワークフローの完了/失敗を即座に通知したい。",
+      "prompt": "Discord Webhookで通知を送るユーティリティを作ってください。\n\n.env: DISCORD_WEBHOOK_URL\n\n関数:\n```ts\nnotifyDiscord({\n  title: string,\n  description: string,\n  color?: 'success' | 'warning' | 'error',  // → 0x00ff00 などに変換\n  fields?: { name: string, value: string }[],\n  files?: string[]  // 画像/PDFの添付\n}): Promise<void>\n```\n\nEmbedフォーマット:\n```json\n{\n  \"embeds\": [{\n    \"title\": \"...\",\n    \"description\": \"...\",\n    \"color\": 3066993,\n    \"fields\": [...],\n    \"timestamp\": \"ISO8601\",\n    \"footer\": { \"text\": \"AutoWorkflow\" }\n  }]\n}\n```\n\n添付ファイルは multipart/form-data で送信。"
+    },
+    {
+      "id": "notify-line",
+      "title": "LINE Messaging API通知",
+      "category": "notify",
+      "level": "api",
+      "summary": "LINE Messaging APIで、個人やグループにメッセージ・リッチメッセージを送信。",
+      "source": "LINEMiniApp系",
+      "usage": "クライアント通知、日報送信など。",
+      "prompt": "LINE Messaging APIで通知を送るユーティリティを作ってください。\n\n.env:\n- LINE_CHANNEL_ACCESS_TOKEN\n- LINE_USER_ID (or LINE_GROUP_ID)\n\n機能:\n1. sendText(text): 単純テキスト\n2. sendFlex(flexMessage): Flex Message（リッチカード）\n3. sendImage(imageUrl, previewUrl): 画像送信\n\nエンドポイント: POST https://api.line.me/v2/bot/message/push\n\nヘッダー:\n- Authorization: Bearer ${ACCESS_TOKEN}\n- Content-Type: application/json\n\nペイロード例（Flex）:\n```json\n{\n  \"to\": \"USER_ID\",\n  \"messages\": [{ \"type\": \"flex\", \"altText\": \"...\", \"contents\": {...} }]\n}\n```"
+    },
+    {
+      "id": "notify-email",
+      "title": "メール送信（Resend / Gmail API）",
+      "category": "notify",
+      "level": "api",
+      "summary": "HTMLメールやPDF添付メールをResend API or Gmail APIで送信。",
+      "source": "Sales_WorkFlow",
+      "usage": "レポートメール送信、問い合わせ返信自動化。",
+      "prompt": "Resend API でメール送信するユーティリティを作ってください。\n\n.env: RESEND_API_KEY, FROM_EMAIL\n\n関数:\n```ts\nsendEmail({\n  to: string | string[],\n  subject: string,\n  html: string,        // HTMLテンプレ（Handlebars等で変数埋め込み済み）\n  attachments?: { filename: string, content: Buffer }[]\n}): Promise<void>\n```\n\n要件:\n- HTMLテンプレは templates/email/*.hbs に配置\n- 変数置換: Handlebars.compile(template)(data)\n- PDFは前のチップスで生成したものを添付\n- 送信結果は logs/email.log に JSON Lines で追記"
+    },
+    {
+      "id": "data-portfolio",
+      "title": "株式ポートフォリオ分析",
+      "category": "data",
+      "level": "api",
+      "summary": "Alpha Vantage APIで株価を取得し、保有銘柄の損益・推奨アクションをAIが生成。",
+      "source": "Sales_WorkFlow / StockWorkFlow",
+      "usage": "保有株の週次レポートを自動作成したい。",
+      "prompt": "Pythonで株式ポートフォリオ分析スクリプトを作ってください。\n\n入力:\n- portfolio.csv: symbol,name,shares,purchase_price\n\n.env:\n- ALPHAVANTAGE_API_KEY\n- GEMINI_API_KEY\n\n処理:\n1. 各シンボルの最新株価を Alpha Vantage で取得（5req/min制限に注意）\n2. 含み損益を計算\n3. 過去30日の値動きを取得\n4. Gemini に投げて、以下を生成:\n   - 各銘柄の「継続保有/利確/損切」推奨\n   - ポートフォリオ全体のリスクコメント\n   - 月次目標達成のための追加アクション\n5. HTML/PDFレポート出力\n\n出力: report/weekly_YYYY-MM-DD.pdf"
+    },
+    {
+      "id": "data-dashboard-html",
+      "title": "Markdown→HTMLダッシュボード",
+      "category": "data",
+      "level": "prompt",
+      "summary": "Markdown形式のレポートを、スタイル付きHTMLに変換してブラウザで見やすく表示。",
+      "source": "Sales_WorkFlow",
+      "usage": "生成したレポートをブラウザ or メール用に整形。",
+      "prompt": "Pythonで Markdown → HTML 変換スクリプトを作ってください。\n\nライブラリ: markdown (python-markdown) + カスタムCSS\n\n処理:\n1. Markdownファイル読み込み\n2. 拡張: tables, fenced_code, toc\n3. カスタムCSS を <style> に埋め込み (darkモード対応)\n4. 画像は base64 埋め込み or 相対パスで保持\n5. 出力: report.html\n\nオプション:\n- --pdf フラグで WeasyPrint 経由でPDF化\n- --email フラグでインラインCSS化（メール配信用）"
+    },
+    {
+      "id": "data-pdf-export",
+      "title": "HTML→PDF変換（WeasyPrint）",
+      "category": "data",
+      "level": "infra",
+      "summary": "生成したHTMLレポートをWeasyPrintで印刷品質のPDFに変換。",
+      "source": "Sales_WorkFlow",
+      "usage": "クライアント配布用のきれいなPDFが必要な時。",
+      "prompt": "WeasyPrint で HTML を PDF に変換するスクリプトを作ってください。\n\nインストール:\n- pip install weasyprint\n- macOS: brew install pango\n\nスクリプト:\n```python\nfrom weasyprint import HTML, CSS\n\nHTML('report.html').write_pdf(\n    'report.pdf',\n    stylesheets=[CSS('styles/print.css')]\n)\n```\n\n要件:\n- @page CSSでA4/余白指定\n- 日本語フォント埋め込み（Noto Sans JP）\n- ヘッダー・フッター（ページ番号）\n- 画像はすべて絶対パス or base64 で解決\n\n注意点: Chrome印刷と見た目が違う場合があるので要確認"
+    },
+    {
+      "id": "schedule-github-actions",
+      "title": "GitHub Actionsでcron実行",
+      "category": "schedule",
+      "level": "infra",
+      "summary": "GitHub Actions cron schedule を使って、毎日/毎週決まった時間にワークフローを自動実行。",
+      "source": "DailyInstagramWorkFlow / Sales_WorkFlow",
+      "usage": "ローカルPCを起動しなくても自動化を回したい。",
+      "prompt": ".github/workflows/daily.yml に、毎朝9時（JST）に npm run generate を実行するGitHub Actionsを作ってください。\n\n要件:\n- cron: '0 0 * * *' （UTC 0時 = JST 9時）\n- workflow_dispatch で手動実行も可能\n- Node 20 セットアップ\n- 依存インストール: npm ci\n- シークレット: GEMINI_API_KEY, FTP_USER, FTP_PASS などを参照\n- 成果物は out/ にコミット＆プッシュ（peter-evans/create-pull-request）\n- 失敗時はDiscord Webhookで通知\n\nスニペット例:\n```yaml\nname: Daily Generate\non:\n  schedule:\n    - cron: '0 0 * * *'\n  workflow_dispatch:\njobs:\n  run:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: 20\n      - run: npm ci\n      - run: npm run generate\n        env:\n          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}\n```"
+    },
+    {
+      "id": "schedule-local-cron",
+      "title": "ローカルcron / macOS launchd",
+      "category": "schedule",
+      "level": "infra",
+      "summary": "常時起動しているローカルPCやサーバーで、crontabやlaunchdを使って自動実行する。",
+      "source": "仕事管理",
+      "usage": "秘密情報が多くGitHub Actionsに置けない、ローカル資源を使いたい。",
+      "prompt": "macOSのlaunchdで、毎朝8時に npm run brief を実行する設定を作ってください。\n\n配置:\n- ~/Library/LaunchAgents/com.ifjuku.brief.plist\n\n内容:\n```xml\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\">\n<dict>\n  <key>Label</key><string>com.ifjuku.brief</string>\n  <key>ProgramArguments</key>\n  <array>\n    <string>/bin/zsh</string>\n    <string>-c</string>\n    <string>cd /path/to/project && /usr/local/bin/npm run brief >> logs/brief.log 2>&1</string>\n  </array>\n  <key>StartCalendarInterval</key>\n  <dict>\n    <key>Hour</key><integer>8</integer>\n    <key>Minute</key><integer>0</integer>\n  </dict>\n  <key>RunAtLoad</key><false/>\n</dict>\n</plist>\n```\n\nロード: launchctl load ~/Library/LaunchAgents/com.ifjuku.brief.plist\n確認: launchctl list | grep ifjuku\n\nLinuxならcrontab: 0 8 * * * cd /path && npm run brief"
+    },
+    {
+      "id": "schedule-vercel-cron",
+      "title": "Vercel Cron Jobs",
+      "category": "schedule",
+      "level": "api",
+      "summary": "Vercel ProjectのCron Jobsで、API Routeをスケジュール実行する。",
+      "source": "仕事管理 / Vercelベストプラクティス",
+      "usage": "サーバーレスで完結する定期ジョブ。ローカル環境不要。",
+      "prompt": "Next.js (App Router) に毎朝9時に実行されるVercel Cronを設定してください。\n\n1. API Route: app/api/cron/daily/route.ts\n```ts\nexport async function GET(request: Request) {\n  const auth = request.headers.get('authorization');\n  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {\n    return new Response('Unauthorized', { status: 401 });\n  }\n  // ジョブ本体\n  await runDailyJob();\n  return Response.json({ ok: true });\n}\n```\n\n2. vercel.json:\n```json\n{\n  \"crons\": [\n    { \"path\": \"/api/cron/daily\", \"schedule\": \"0 0 * * *\" }\n  ]\n}\n```\n\n3. 環境変数 CRON_SECRET を設定（`vercel env add`）\n\n要件:\n- Hobbyプランは1日1回まで\n- Cron schedule はUTC基準なので JST 9時 → UTC 0時"
+    },
+    {
+      "id": "util-env-template",
+      "title": ".env管理 & シークレット注入",
+      "category": "util",
+      "level": "prompt",
+      "summary": ".env.example を整備し、Vercel/GitHub Secretsと同期する仕組みを作る。",
+      "source": "全ワークフロー共通",
+      "usage": "APIキー管理を属人化させず、チーム共有できるようにしたい。",
+      "prompt": "プロジェクトルートに .env.example を作成し、必要なAPIキーを全て列挙してください。\n\nフォーマット:\n```\n# ==== AI Providers ====\nGEMINI_API_KEY=        # https://aistudio.google.com/app/apikey\nOPENAI_API_KEY=\nDEEPSEEK_API_KEY=\n\n# ==== Storage ====\nFTP_HOST=\nFTP_USER=\nFTP_PASS=\nFTP_PUBLIC_BASE_URL=\n\n# ==== Notifications ====\nDISCORD_WEBHOOK_URL=\nLINE_CHANNEL_ACCESS_TOKEN=\n```\n\n追加で .gitignore に .env を追加し、README に設定手順を記載してください。\n\nVercelとの同期: `vercel env pull .env.local` でサーバー環境変数をローカルに取得できる。"
+    },
+    {
+      "id": "util-history",
+      "title": "投稿/実行履歴の管理",
+      "category": "util",
+      "level": "prompt",
+      "summary": "実行結果・投稿内容をJSONで履歴管理し、重複検出や振り返りに使う。",
+      "source": "NotePost / DailyInstagramWorkFlow",
+      "usage": "同じトピックを再投稿しない、月次の振り返りを自動集計。",
+      "prompt": "data/history.jsonl （JSON Lines）を管理するユーティリティを作ってください。\n\nAPI:\n- appendHistory(record): 新規エントリを追記\n- queryHistory({ days, category }): フィルタして取得\n- findDuplicate(title, similarity_threshold=0.8): 過去投稿から類似タイトル検出\n\nエントリ例:\n```json\n{ \"timestamp\": \"2026-04-19T09:00:00+09:00\", \"category\": \"ai-news\", \"title\": \"...\", \"url\": \"...\", \"status\": \"published\" }\n```\n\n類似度判定: Levenshtein距離 or 単純にタイトル内の名詞一致率\n\n月次レポート生成:\n- 投稿数、カテゴリ別内訳、平均インプレッション（もしデータあれば）\n- Markdownで出力"
+    },
+    {
+      "id": "util-mock",
+      "title": "モック/dry-runモードで安全テスト",
+      "category": "util",
+      "level": "prompt",
+      "summary": "本番APIを叩かずに、ダミーデータでワークフロー全体をテスト走行できるモード。",
+      "source": "DailyInstagramWorkFlow",
+      "usage": "開発中にAPIコストを抑えたい、手元で振る舞いを確認したい。",
+      "prompt": "ワークフローに --mock / --dry-run フラグを追加してください。\n\n動作:\n- --mock: 外部API呼び出しをすべてモックに置き換え\n  - Gemini → 固定JSONレスポンス\n  - 画像生成 → 事前用意した assets/mocks/sample-{n}.png を返す\n  - FTPアップロード → コンソールにログ出力のみ\n  - Discord通知 → ログファイルに書き出しのみ\n- --dry-run: 実際のAPIは叩くが、最終的な投稿/送信ステップはスキップ\n\n実装:\n- 各サービスラッパを `if (MOCK_MODE)` で分岐\n- テスト用データは fixtures/ ディレクトリに配置\n- CI環境では常に --mock で走らせる"
+    },
+    {
+      "id": "util-config",
+      "title": "vercel.ts でプロジェクト設定",
+      "category": "util",
+      "level": "prompt",
+      "summary": "TypeScriptでVercel設定を書き、環境ごとの動的な設定を型安全に管理。",
+      "source": "Vercel ベストプラクティス（2026）",
+      "usage": "vercel.json よりもメンテしやすい設定にしたい。",
+      "prompt": "プロジェクトルートに vercel.ts を作成してください。\n\n```ts\nimport { routes, deploymentEnv, type VercelConfig } from '@vercel/config/v1';\n\nexport const config: VercelConfig = {\n  buildCommand: 'npm run build',\n  framework: 'nextjs',\n  rewrites: [\n    routes.rewrite('/api/(.*)', 'https://backend.example.com/$1'),\n  ],\n  redirects: [\n    routes.redirect('/old-docs', '/docs', { permanent: true }),\n  ],\n  headers: [\n    routes.cacheControl('/static/(.*)', { public: true, maxAge: '1 week', immutable: true }),\n  ],\n  crons: [\n    { path: '/api/cron/daily', schedule: '0 0 * * *' }\n  ],\n};\n```\n\nインストール: npm i -D @vercel/config\n\nメリット:\n- IntelliSenseで補完が効く\n- deploymentEnv で Preview/Production 別の設定を動的に生成可能\n- 既存 vercel.json があれば削除"
+    },
+    {
+      "id": "util-ai-gateway",
+      "title": "Vercel AI Gateway で複数プロバイダ統合",
+      "category": "util",
+      "level": "api",
+      "summary": "単一のAPIキーで、Anthropic/OpenAI/Gemini等を横断的に使え、フォールバックも可能。",
+      "source": "Vercel 2025 GA",
+      "usage": "プロバイダー依存を避け、コスト/可用性を最適化したい。",
+      "prompt": "Vercel AI SDK v6 + AI Gateway で、モデル選択可能なテキスト生成を実装してください。\n\nインストール: npm i ai\n\n```ts\nimport { generateText } from 'ai';\n\nconst { text } = await generateText({\n  model: 'anthropic/claude-opus-4-7',   // プロバイダ/モデル文字列\n  prompt: '要約してください: ...',\n});\n```\n\n利点:\n- フォールバック: 配列で [primary, fallback1, fallback2]\n- コスト記録・可観測性（Vercelダッシュボード）\n- Zero data retention (ZDR)\n\n.env: AI_GATEWAY_API_KEY のみでOK（個別のANTHROPIC_API_KEYなどは不要）\n\n参考: https://vercel.com/docs/ai-gateway"
+    },
+    {
+      "id": "util-subagent",
+      "title": "Claude Codeサブエージェント設計",
+      "category": "util",
+      "level": "prompt",
+      "summary": "大きなタスクを director / coder / designer などの専門エージェントに分割し、並列実行する。",
+      "source": "HeartUpApp / if(塾)社内パターン",
+      "usage": "単一コンテキストでは複雑すぎるワークフローを分担させたい。",
+      "prompt": "Claude Code Agent用のサブエージェント設定を作ってください。\n\n.claude/agents/ 以下にMarkdown形式で定義:\n- director.md: タスク分解と指揮\n- researcher.md: 情報収集専門\n- coder.md: コード実装\n- designer.md: UI/UX提案\n- reviewer.md: 品質レビュー\n\n各ファイルのフロントマター:\n```yaml\n---\nname: researcher\ndescription: 情報収集と調査に特化。Web・RSS・社内資料から情報を引き出す。\ntools: [WebSearch, WebFetch, Grep, Read]\n---\n\n# Researcherの役割\nあなたは...\n\n## 返すべきアウトプット\n- 箇条書き5つの要点\n- 出典URL\n- 信頼度コメント\n```\n\nDirectorから Task tool で呼び出し:\n```\nTask(subagent_type=\"researcher\", prompt=\"...\")\n```\n\n並列実行で時短。"
+    },
+    {
+      "id": "util-skill",
+      "title": "Claude Code Skill化で再利用",
+      "category": "util",
+      "level": "prompt",
+      "summary": "頻繁に使うワークフローをSkill（スラッシュコマンド）として登録し、1コマンドで呼び出せるようにする。",
+      "source": "notebooklm-skill-master / /generate-post",
+      "usage": "同じ処理を何度も指示するのが面倒な時。",
+      "prompt": "Claude Code の Skillを作成してください。\n\n配置: ~/.claude/skills/{skill-name}/SKILL.md\n\nSKILL.md 構造:\n```markdown\n---\nname: generate-post\ndescription: 指定カテゴリで記事生成→画像生成→FTPアップ→投稿までを一気通貫で実行\nargs: <category>  # ai/business/education/activity\n---\n\n# generate-post\n\nあなたはこのスキルを起動されたら以下を実行します:\n\n1. `$1` をカテゴリとして解釈\n2. `cd ~/workflows/poster && npm run generate -- --category=$1`\n3. 生成された記事パスを `npm run post -- --draft` に渡す\n4. 結果URLをユーザーに報告\n\n## エラーハンドリング\n- APIキー未設定なら `.env.example` を参照するよう案内\n- FTP失敗時はリトライ指示を出す\n```\n\n呼び出し: Claude Code内で `/generate-post ai-news`"
+    },
+    {
+      "id": "util-hook",
+      "title": "Claude Code Hookで自動実行",
+      "category": "util",
+      "level": "prompt",
+      "summary": "「ファイル編集後に必ずLint」「セッション終了時にログ保存」などをhooksで自動化。",
+      "source": "Claude Code標準機能",
+      "usage": "忘れがちな定型処理を機械的に回したい。",
+      "prompt": "~/.claude/settings.json に hook を追加してください。\n\n例1: TypeScript編集後に自動で tsc --noEmit\n```json\n{\n  \"hooks\": {\n    \"PostToolUse\": [\n      {\n        \"matcher\": \"Edit|Write\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"cd $CLAUDE_PROJECT_DIR && npx tsc --noEmit --pretty\"\n          }\n        ]\n      }\n    ]\n  }\n}\n```\n\n例2: セッション終了時に今日の作業ログを knowledge-base に書き出す\n```json\n{\n  \"Stop\": [\n    {\n      \"hooks\": [\n        { \"type\": \"command\", \"command\": \"~/.claude/scripts/save-log.sh\" }\n      ]\n    }\n  ]\n}\n```\n\n注意: マッチャーは正規表現。 settings.local.json にプロジェクト固有hookも書ける。"
+    },
+    {
+      "id": "util-workflow-compose",
+      "title": "チップスを組み合わせる（ワークフロー設計）",
+      "category": "util",
+      "level": "prompt",
+      "summary": "複数のチップスを直列/並列で連結し、1コマンドで実行できるオーケストレーションを書く。",
+      "source": "全ワークフロー共通パターン",
+      "usage": "個別チップスを組み合わせて自分だけの自動化を作りたい。",
+      "prompt": "ShortMovie風のワークフローを組む例:\n\npackage.json scripts:\n```json\n{\n  \"scripts\": {\n    \"plan\": \"tsx scripts/plan.ts\",\n    \"scenes\": \"tsx scripts/scenes.ts\",\n    \"images\": \"tsx scripts/images.ts\",\n    \"audio\": \"tsx scripts/audio.ts\",\n    \"composite\": \"tsx scripts/composite.ts\",\n    \"render\": \"remotion render\",\n    \"all\": \"npm run plan && npm run scenes && npm run images && npm run audio && npm run composite && npm run render\"\n  }\n}\n```\n\n各ステップの出力を次の入力にする連鎖設計:\n- plan → 01-content-plan.json\n- scenes → 02-scenes.json\n- images → out/bg-*.png\n- audio → out/audio-*.mp3\n- composite → out/scene-*.png\n- render → out/final.mp4\n\n要件:\n- 各ステップは独立して再実行可能（冪等）\n- 途中失敗時はそのステップから再開できる\n- 並列化可能なら Promise.all でまとめる（画像生成など）"
+    }
+  ]
+}

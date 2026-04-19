@@ -1,0 +1,69 @@
+* {
+  font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+code, pre, .font-mono {
+  font-family: 'JetBrains Mono', 'Menlo', monospace;
+}
+
+.prompt-block {
+  background: #0a0f1a;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #cbd5e1;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.prompt-block::-webkit-scrollbar {
+  width: 8px;
+}
+.prompt-block::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+.prompt-block::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+.tip-card {
+  transition: all 0.2s ease;
+}
+.tip-card:hover {
+  border-color: rgb(14 165 233 / 0.5);
+  transform: translateY(-1px);
+}
+
+.category-pill {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.category-pill:hover {
+  background: rgb(30 41 59);
+}
+.category-pill.active {
+  background: rgb(14 165 233);
+  color: white;
+  border-color: rgb(14 165 233);
+}
+
+details[open] summary .chevron {
+  transform: rotate(90deg);
+}
+.chevron {
+  transition: transform 0.2s ease;
+}
+
+.toast-show {
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+}
+
+.level-prompt { background: rgb(34 197 94 / 0.15); color: rgb(134 239 172); border-color: rgb(34 197 94 / 0.3); }
+.level-api    { background: rgb(59 130 246 / 0.15); color: rgb(147 197 253); border-color: rgb(59 130 246 / 0.3); }
+.level-infra  { background: rgb(168 85 247 / 0.15); color: rgb(216 180 254); border-color: rgb(168 85 247 / 0.3); }
