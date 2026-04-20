@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ワークフロービルダー | Claude Code チップス集</title>
+  <meta name="description" content="Scratchのようにチップスを縦に積み重ねてワークフローを設計。実装用プロンプトも自動生成。" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen antialiased">
+
+  <header class="border-b border-slate-200 bg-white/95 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <a href="../index.html" class="text-sm text-slate-500 hover:text-cyan-600 transition">← チップス集に戻る</a>
+        <div class="w-px h-6 bg-slate-200"></div>
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white text-lg">🧩</div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight text-slate-900">ワークフロービルダー</h1>
+          <p class="text-xs text-slate-500 mt-0.5">チップスを積み重ねて、Claude Codeへのプロンプトを自動生成</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="clear-btn" class="text-sm px-3 py-2 border-2 border-slate-200 rounded-lg hover:bg-slate-50 transition">🗑 すべてクリア</button>
+        <button id="generate-btn" class="text-sm px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-lg font-bold hover:opacity-90 transition shadow-md">✨ プロンプトを生成</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-[1400px] mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
+
+    <!-- 左：チップスパレット -->
+    <aside class="bg-white rounded-2xl border-2 border-slate-200 p-5 h-[calc(100vh-140px)] sticky top-[90px] flex flex-col">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-bold text-slate-900">チップス一覧</h2>
+        <span class="text-xs text-slate-500"><span id="palette-count">0</span>件</span>
+      </div>
+      <input id="palette-search" type="text" placeholder="🔍 検索 (画像, 投稿など)" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400 focus:bg-white transition mb-3" />
+      <div id="palette-categories" class="flex flex-wrap gap-1.5 mb-3"></div>
+      <div id="palette" class="flex-1 overflow-y-auto pr-1 space-y-2"></div>
+    </aside>
+
+    <!-- 右：ワークスペース -->
+    <main class="bg-white rounded-2xl border-2 border-slate-200 p-6 min-h-[calc(100vh-140px)]">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="font-bold text-slate-900 text-lg">あなたのワークフロー</h2>
+          <p class="text-xs text-slate-500 mt-0.5">左のチップスをクリックして追加。ブロックは縦に順番に実行されます。</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-slate-500"><span id="workflow-count">0</span>ステップ</span>
+        </div>
+      </div>
+
+      <!-- 入力：ワークフロー名・目的 -->
+      <div class="mb-4 p-4 bg-amber-50 border-2 border-amber-200 rounded-xl">
+        <label class="block text-xs font-bold text-amber-900 mb-1">🎯 このワークフローで達成したいこと（任意）</label>
+        <input id="workflow-goal" type="text" placeholder="例：毎朝9時に最新AIニュースをまとめてInstagramに自動投稿する" class="w-full bg-white border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-400 transition" />
+      </div>
+
+      <!-- ブロックスタック -->
+      <div id="workspace" class="workspace">
+        <div id="empty-workspace" class="text-center py-20 text-slate-400">
+          <div class="text-6xl mb-3">🧩</div>
+          <p class="text-base font-medium">左のチップスをクリックして、ワークフローを組み立てよう</p>
+          <p class="text-sm mt-2 text-slate-400">上から順にClaude Codeが実装していきます</p>
+        </div>
+        <div id="block-stack"></div>
+        <div id="stack-end" class="hidden text-center py-6 text-slate-400">
+          <div class="text-2xl">✓</div>
+          <p class="text-sm mt-1">ワークフロー完了</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- モーダル：生成されたプロンプト -->
+  <div id="prompt-modal" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[85vh] flex flex-col shadow-2xl">
+      <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-lg text-slate-900">✨ 生成されたプロンプト</h3>
+          <p class="text-xs text-slate-500 mt-0.5">このままClaude Codeに貼り付けて実装を依頼できます</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="copy-prompt-btn" class="text-sm px-4 py-2 bg-cyan-600 text-white rounded-lg font-bold hover:bg-cyan-700 transition">📋 コピー</button>
+          <button id="close-modal-btn" class="text-sm px-3 py-2 border-2 border-slate-200 rounded-lg hover:bg-slate-50 transition">閉じる</button>
+        </div>
+      </div>
+      <div class="p-5 overflow-y-auto flex-1">
+        <pre id="generated-prompt" class="prompt-output"></pre>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-6 right-6 bg-cyan-600 text-white px-5 py-3 rounded-lg shadow-xl translate-y-20 opacity-0 transition-all pointer-events-none text-sm font-medium z-[200]"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
