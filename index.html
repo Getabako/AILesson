@@ -14,22 +14,22 @@
 <body class="bg-white text-slate-800 min-h-screen antialiased">
 
   <header class="border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-50">
-    <div class="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
-      <div class="flex items-center gap-4">
-        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center font-black text-white text-lg">if</div>
-        <div>
-          <h1 class="font-bold text-xl leading-tight text-slate-900">Claude Code チップス集</h1>
-          <p class="text-sm text-slate-500 mt-0.5">if(塾) ワークフロー講座 資料</p>
+    <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between gap-3">
+      <a href="index.html" class="flex items-center gap-3 shrink-0">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center font-black text-white text-lg">if</div>
+        <div class="hidden sm:block">
+          <h1 class="font-bold text-base leading-tight text-slate-900">Claude Code チップス集</h1>
+          <p class="text-xs text-slate-500 mt-0.5">if(塾) ワークフロー講座</p>
         </div>
-      </div>
-      <div class="flex items-center gap-4">
-        <a href="tool/index.html" class="hidden sm:inline-flex items-center gap-2 text-sm px-4 py-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-lg font-bold hover:opacity-90 transition shadow-md">
-          🧩 ワークフロービルダー
+      </a>
+      <nav class="flex items-center gap-1.5 sm:gap-2">
+        <a href="index.html" class="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg font-bold bg-slate-900 text-white hover:bg-slate-800 transition">
+          📚 <span class="hidden sm:inline">チップス一覧</span>
         </a>
-        <div class="text-sm text-slate-400 hidden md:block">
-          最終更新: <span id="last-updated">—</span>
-        </div>
-      </div>
+        <a href="tool/index.html" class="inline-flex items-center gap-1.5 text-sm px-3 py-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-lg font-bold hover:opacity-90 transition shadow-md">
+          🧩 <span class="hidden sm:inline">ワークフロービルダー</span>
+        </a>
+      </nav>
     </div>
   </header>
 
