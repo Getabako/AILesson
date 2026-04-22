@@ -15,7 +15,6 @@
     openIds: new Set()
   };
 
-  document.getElementById('last-updated').textContent = data.meta.lastUpdated;
   document.getElementById('total-count').textContent = data.tips.length;
 
   const catFilter = document.getElementById('category-filter');

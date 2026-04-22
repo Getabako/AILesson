@@ -14,7 +14,8 @@
     { "id": "notify", "label": "通知・連携", "icon": "🔔" },
     { "id": "data", "label": "データ分析・レポート", "icon": "📊" },
     { "id": "schedule", "label": "スケジュール実行", "icon": "⏰" },
-    { "id": "util", "label": "ユーティリティ", "icon": "🛠️" }
+    { "id": "util", "label": "ユーティリティ", "icon": "🛠️" },
+    { "id": "google", "label": "Google連携", "icon": "🌐" }
   ],
   "levels": [
     { "id": "prompt", "label": "Lv.1 プロンプトのみ", "color": "green", "desc": "Claude Codeに指示を出すだけで実装できる。追加のAPIキーやサービス登録は不要。" },
@@ -481,6 +482,286 @@
       "source": "全ワークフロー共通パターン",
       "usage": "個別チップスを組み合わせて自分だけの自動化を作りたい。",
       "prompt": "ShortMovie風のワークフローを組む例:\n\npackage.json scripts:\n```json\n{\n  \"scripts\": {\n    \"plan\": \"tsx scripts/plan.ts\",\n    \"scenes\": \"tsx scripts/scenes.ts\",\n    \"images\": \"tsx scripts/images.ts\",\n    \"audio\": \"tsx scripts/audio.ts\",\n    \"composite\": \"tsx scripts/composite.ts\",\n    \"render\": \"remotion render\",\n    \"all\": \"npm run plan && npm run scenes && npm run images && npm run audio && npm run composite && npm run render\"\n  }\n}\n```\n\n各ステップの出力を次の入力にする連鎖設計:\n- plan → 01-content-plan.json\n- scenes → 02-scenes.json\n- images → out/bg-*.png\n- audio → out/audio-*.mp3\n- composite → out/scene-*.png\n- render → out/final.mp4\n\n要件:\n- 各ステップは独立して再実行可能（冪等）\n- 途中失敗時はそのステップから再開できる\n- 並列化可能なら Promise.all でまとめる（画像生成など）"
+    },
+    {
+      "id": "google-oauth-setup",
+      "title": "GoogleのAPIにログインできるようにする",
+      "category": "google",
+      "level": "infra",
+      "summary": "Google Cloudでクライアントを発行し、OAuth認可でアクセストークン/リフレッシュトークンを保存する。一度通せば全Googleサービスで使い回せる。",
+      "source": "仕事管理",
+      "usage": "Googleカレンダー・Gmail・Drive・Sheetsなど、自分のアカウントのデータを扱う自動化を作る最初の1回の準備。",
+      "prompt": "Google OAuth認証の初期セットアップスクリプトを作ってください。\n\n前提:\n1. Google Cloud Console でプロジェクト作成し、使いたいAPI（Calendar/Gmail/Sheets/Drive/Slides/YouTubeなど）を有効化\n2. OAuth 同意画面を設定し、テストユーザーに自分のアカウントを登録\n3. 認証情報 → OAuth クライアントID（デスクトップアプリ）を作成し credentials.json をダウンロード\n\nスクリプト要件:\n- googleapis と google-auth-library を使用\n- credentials.json を読み込み\n- 127.0.0.1:3000 にリダイレクトを受けて認可コードを受信\n- 取得した refresh_token を ~/.credentials/google-token.json に保存\n- 以降は token.json から自動更新\n\nSCOPES は .env で切り替えられるように:\nGOOGLE_SCOPES=https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/drive\n\n実行: npm run google-auth"
+    },
+    {
+      "id": "google-service-account",
+      "title": "AIの裏方専用Googleアカウントを作る",
+      "category": "google",
+      "level": "infra",
+      "summary": "ユーザーログインなしでGoogle APIを叩ける『サービスアカウント』を用意し、共有したシートやDriveを自動で読み書きさせる。",
+      "source": "DailyInstagramWorkFlow",
+      "usage": "毎日定期実行されるワークフローで、ブラウザログインなしにSheets/Driveを操作したい時。",
+      "prompt": "Google サービスアカウントでSheets/Driveを読み書きするスクリプトを作ってください。\n\nセットアップ手順:\n1. Google Cloud Console → サービスアカウントを作成\n2. キーを作成（JSON）→ service-account.json としてダウンロード\n3. 対象のスプレッドシートやDriveフォルダを、サービスアカウントのメール（xxx@xxx.iam.gserviceaccount.com）に『編集者』で共有\n\nコード要件:\n- googleapis の google.auth.GoogleAuth を使用\n- keyFile: ./service-account.json\n- SCOPES: drive.file, spreadsheets\n- 例: 指定スプレッドシートのSheet1に1行追記する関数を作る\n\n.env.template も作成:\nGOOGLE_APPLICATION_CREDENTIALS=./service-account.json\nSHEET_ID=xxx\n\n注意: service-account.json は絶対にcommitしない（.gitignoreに追加）"
+    },
+    {
+      "id": "google-calendar-list",
+      "title": "今日の予定をまとめて取得する",
+      "category": "google",
+      "level": "infra",
+      "summary": "Google Calendar APIで指定期間のイベント一覧（開始時刻・タイトル・参加者・場所）をJSONで取り出す。",
+      "source": "仕事管理",
+      "usage": "朝イチで今日のアジェンダをAIに要約させたい、予定一覧をDiscord/LINEに送りたい時。",
+      "prompt": "Google Calendar APIで今日の予定一覧を取得するスクリプトを作ってください。\n\n前提: OAuthトークンが ~/.credentials/google-token.json に保存済み\n\n要件:\n- googleapis の calendar.events.list を使用\n- calendarId: 'primary' と、追加カレンダーIDを配列で指定可能\n- timeMin: 今日 00:00 JST / timeMax: 今日 23:59 JST\n- singleEvents: true（繰り返しを展開） / orderBy: startTime\n\n出力 (JSON):\n[{ start: '09:00', end: '10:00', title: '...', location: '...', attendees: [...], hangoutLink: '...' }]\n\nCLI:\nnpm run cal:today\nnpm run cal:today -- --days=7  (今日から7日分)"
+    },
+    {
+      "id": "google-calendar-create",
+      "title": "AIが決めた予定をカレンダーに追加する",
+      "category": "google",
+      "level": "infra",
+      "summary": "自然文からタイトル・時刻・場所を抽出してGoogleカレンダーに新規イベントを作成する。Meetリンクも自動発行できる。",
+      "source": "仕事管理",
+      "usage": "チャットで『明日15時に田中さんと打ち合わせ入れて』と言うだけで予定登録したい時。",
+      "prompt": "自然文から予定を抽出してGoogle Calendarに登録するスクリプトを作ってください。\n\n処理フロー:\n1. 入力テキストをGeminiに投げて以下のJSONに構造化\n   { title, start(ISO8601), end(ISO8601), location, description, attendees(email配列) }\n2. calendar.events.insert でイベント作成（timeZone: Asia/Tokyo）\n3. conferenceDataVersion=1 + conferenceData.createRequest でGoogle Meetリンクを自動発行（オプション）\n4. 登録完了したらイベントURL(htmlLink)を返す\n\n要件:\n- end未指定時は start + 60分\n- 同時間に既存イベントがあれば警告を出してから登録\n\nCLI: npm run cal:add -- \"明日15時に田中さんと打ち合わせ 60分\""
+    },
+    {
+      "id": "google-calendar-freebusy",
+      "title": "空き時間を見つけて会議候補を提案する",
+      "category": "google",
+      "level": "infra",
+      "summary": "freebusyクエリで自分と相手の予定を取得し、共通で空いている時間帯を計算して候補として提示する。",
+      "source": "仕事管理",
+      "usage": "調整さん等を使わずに、相手のメールアドレスだけで候補時間を自動生成したい時。",
+      "prompt": "Google Calendar の freebusy API で会議候補を自動生成するスクリプトを作ってください。\n\n入力:\n- 相手のメールアドレス配列（カレンダー共有されていること）\n- 会議の長さ（分）\n- 希望期間（今日から何日以内）\n- 営業時間（例: 10:00-18:00, 平日のみ）\n\n処理:\n1. calendar.freebusy.query でメンバー全員の多忙時間ブロックを取得\n2. 各日の営業時間から多忙ブロックを引いて、希望長さ以上の空きスロットを抽出\n3. 上位5候補をMarkdown箇条書きで出力\n4. --confirm=1 を付けると、選んだ候補で events.insert する\n\nCLI: npm run cal:find -- --with=tanaka@example.com --duration=60 --days=7"
+    },
+    {
+      "id": "google-calendar-brief",
+      "title": "毎朝カレンダーの予定をDiscordに通知する",
+      "category": "google",
+      "level": "infra",
+      "summary": "朝8時にその日のカレンダーを取得→AIで要約→Discordに投稿する、毎朝ブリーフィング。",
+      "source": "仕事管理",
+      "usage": "朝会前の情報整理を自動化したい、一日の動き方を可視化したい時。",
+      "prompt": "毎朝のカレンダーブリーフィングを自動生成するスクリプトを作ってください。\n\n処理フロー:\n1. Google Calendar APIで今日の予定一覧取得（チップス: google-calendar-list）\n2. Geminiで以下のサマリーを生成:\n   - 午前/午後ブロックごとの要点\n   - 移動が必要な予定と前後の余裕\n   - 準備が必要そうなアイテム（資料・場所）\n3. Discord Webhook に送信（タイトル + Embed形式）\n\n実行タイミング: 毎朝 7:50 (ローカルcron or GitHub Actions schedule)\n環境変数: DISCORD_WEBHOOK_BRIEF, GEMINI_API_KEY\n\n予定ゼロの日は『今日は予定なし』とだけ送信"
+    },
+    {
+      "id": "google-calendar-recurring",
+      "title": "定期イベントを一括で登録する",
+      "category": "google",
+      "level": "infra",
+      "summary": "CSV/JSONの予定リストから、繰り返しイベント（毎週火曜18時など）を一気にGoogleカレンダーに登録する。",
+      "source": "仕事管理",
+      "usage": "新学期の時間割やレッスンスケジュール、定例ミーティングをまとめて登録したい時。",
+      "prompt": "CSVから定期イベントを一括登録するスクリプトを作ってください。\n\nCSV形式 (schedule.csv):\ntitle,day_of_week,start_time,end_time,location,until\nプログラミング中級,Tue,18:00,20:00,if(塾)本校,2026-12-31\n\n処理:\n1. CSV読み込み\n2. 各行について recurrence: ['RRULE:FREQ=WEEKLY;BYDAY=TU;UNTIL=20261231T150000Z'] を生成\n3. calendar.events.insert で登録\n4. 登録結果をログに残す\n\nCLI: npm run cal:bulk -- schedule.csv\n注意: timeZone は Asia/Tokyo、UNTIL は UTC (末尾Z) に変換"
+    },
+    {
+      "id": "google-sheets-append",
+      "title": "処理結果をスプレッドシートに追記する",
+      "category": "google",
+      "level": "infra",
+      "summary": "ワークフローの実行ログや成果物リストを、Googleスプレッドシートの最終行に自動で追記していく。",
+      "source": "DailyInstagramWorkFlow",
+      "usage": "AIが生成したネタ・投稿・分析を、チームで共有しやすいシートに記録したい時。",
+      "prompt": "生成した投稿データをGoogleスプレッドシートに追記するスクリプトを作ってください。\n\n要件:\n- sheets.spreadsheets.values.append を使用\n- range: 'Sheet1!A:F'\n- valueInputOption: 'USER_ENTERED'\n- 列構成: 日付 / カテゴリ / タイトル / 本文 / 画像URL / 投稿URL\n\n入力: JSONオブジェクト\n{ category, title, body, imageUrl, postUrl }\n\n処理:\n1. 今日の日付を先頭列に付与\n2. append で末尾に追加\n3. 追加した行番号をログ出力\n\n.env:\nSHEET_ID=xxx (URLの /d/ の後ろの文字列)\nGOOGLE_APPLICATION_CREDENTIALS=./service-account.json"
+    },
+    {
+      "id": "google-sheets-read",
+      "title": "スプレッドシートを読み込んでAIに渡す",
+      "category": "google",
+      "level": "infra",
+      "summary": "指定シートの全行をオブジェクト配列として取り出し、AIで集計・分類・要約するためのコンテキストに使う。",
+      "source": "DailyInstagramWorkFlow",
+      "usage": "手元のマスタデータ（商品・学習者一覧など）をAI処理の材料にしたい時。",
+      "prompt": "Google Sheetsを読み込んでAIに渡すスクリプトを作ってください。\n\n処理:\n1. sheets.spreadsheets.values.get で 'Sheet1!A1:Z' を取得\n2. 1行目をヘッダとして扱い、残り行を { header: value } のオブジェクト配列に変換\n3. AI に投げる時は件数過多対策で --limit=20 で絞れるように\n\n使用例:\nconst rows = await readSheet(SHEET_ID, 'Sheet1');\nconst answer = await gemini('以下のデータから今月の売上傾向を分析して: ' + JSON.stringify(rows));\n\nCLI: npm run sheet:analyze -- --sheet=Sheet1 --prompt='今月の売上傾向を要約して'"
+    },
+    {
+      "id": "google-sheets-analyze",
+      "title": "スプレッドシートをAIで分析しレポート化",
+      "category": "google",
+      "level": "infra",
+      "summary": "指定シートのデータをAIに読ませて、週次/月次レポートを自動生成し別タブに書き戻す。",
+      "source": "StockWorkFlow",
+      "usage": "毎週/毎月の定例レポート作成を自動化したい時。",
+      "prompt": "スプレッドシートのデータをAIで分析して別タブに書き戻すスクリプトを作ってください。\n\n処理フロー:\n1. 'raw' タブからデータ取得\n2. Geminiに投げて以下を出力:\n   - 主要指標のサマリー\n   - 前週比/前月比\n   - 異常値の検知\n   - 次アクション提案（3つ）\n3. 'report' タブに書き込み:\n   - A1: 生成日時\n   - A3以降: サマリーMarkdown\n   - 既存レポートは下に押し下げ（insertDimension + values.update）\n\n実行: 毎週月曜 9:00 (GitHub Actions cron)\n出力: 書き込み完了したらDiscordにシートURLを通知"
+    },
+    {
+      "id": "google-sheets-form-classify",
+      "title": "フォーム回答をAIで自動分類する",
+      "category": "google",
+      "level": "infra",
+      "summary": "Googleフォームから流れ込む回答を、AIがカテゴリ分類・優先度付けし、別列に自動記入する。",
+      "source": "仕事管理",
+      "usage": "お問い合わせフォーム・体験申込などの分類を人手でやめたい時。",
+      "prompt": "Googleフォーム回答シートを監視してAI分類を書き込むスクリプトを作ってください。\n\n処理:\n1. シートを取得（例: お問い合わせ内容 = D列）\n2. 分類済みフラグ列（F列）が空の行だけを抽出\n3. 各行の内容をGeminiに投げて以下のJSONを取得:\n   { category: '入塾相談/授業内容/料金/その他', priority: 'high/normal/low', summary: '1行要約' }\n4. E列=カテゴリ、F列=優先度、G列=要約 を values.update で書き込み\n5. 高優先度ならDiscordに通知\n\n定期実行: 15分おき（GitHub Actions schedule）"
+    },
+    {
+      "id": "google-sheets-dashboard",
+      "title": "シートの集計値をチャートで出す",
+      "category": "google",
+      "level": "infra",
+      "summary": "スプレッドシートに集計クエリを書き込んで、埋め込みチャートを自動生成・PNG出力する。",
+      "source": "StockWorkFlow",
+      "usage": "Notion/Discord/LINEで画像として共有できるダッシュボードを作りたい時。",
+      "prompt": "スプレッドシートに集計チャートを生成するスクリプトを作ってください。\n\n処理:\n1. 'raw' タブのデータに対して 'dash' タブに QUERY 関数で集計:\n   =QUERY(raw!A:E, \\\"select A, sum(D) group by A order by sum(D) desc\\\", 1)\n2. sheets.spreadsheets.batchUpdate の addChart リクエストを送信\n   - chartType: BAR\n   - title: '今月の売上トップ10'\n3. Drive API の files.export で PNG 出力\n4. Discord に PNG を投稿\n\n要件: Google Sheets API + Drive API（export用スコープ drive.readonly）"
+    },
+    {
+      "id": "google-docs-create",
+      "title": "AIで書いた原稿をGoogleドキュメントにする",
+      "category": "google",
+      "level": "infra",
+      "summary": "ブログ記事や企画書をAIで下書きし、そのままGoogle Docsにドキュメントとして保存する。",
+      "source": "NotePost",
+      "usage": "社内共有する文章の下書きを、コピペなしで一気にGoogle Docsに配置したい時。",
+      "prompt": "AIが生成した原稿をGoogle Docsとして保存するスクリプトを作ってください。\n\n処理:\n1. 入力: タイトル + Markdown本文\n2. docs.documents.create で新規ドキュメント作成\n3. documents.batchUpdate でテキストを流し込み:\n   - 見出し1 / 見出し2 / 本文 のスタイル変換\n   - 箇条書きは createParagraphBullets\n4. drive.files.update で指定フォルダに移動\n5. drive.permissions.create で共有（anyone:reader）\n6. 共有リンクを返す\n\nCLI: npm run doc:write -- input.md --folder=FOLDER_ID"
+    },
+    {
+      "id": "google-docs-template",
+      "title": "テンプレートから議事録ドキュメントを量産する",
+      "category": "google",
+      "level": "infra",
+      "summary": "既存ドキュメントをテンプレートとしてコピーし、{{日付}}や{{参加者}}などのプレースホルダをAIで埋める。",
+      "source": "仕事管理",
+      "usage": "毎回同じフォーマットの議事録・週報を、会議後すぐに作りたい時。",
+      "prompt": "Google Docsテンプレートから議事録を自動生成するスクリプトを作ってください。\n\n前提: テンプレートDoc（TEMPLATE_DOC_ID）に {{date}} {{title}} {{attendees}} {{summary}} {{actions}} のプレースホルダを配置済み\n\n処理:\n1. drive.files.copy でテンプレート複製（name: 'YYYY-MM-DD 議事録'）\n2. 会議音声をチップス(audio-transcript)で文字起こし\n3. Geminiに投げて { summary, actions, decisions } を生成\n4. documents.batchUpdate の replaceAllText でプレースホルダを置換\n5. 指定Driveフォルダへ移動し、参加者に共有（drive.permissions.create）\n\nCLI: npm run minutes -- meeting.mp3 --attendees=a@x.com,b@x.com"
+    },
+    {
+      "id": "google-docs-review",
+      "title": "ドキュメントをAIが校正・要約する",
+      "category": "google",
+      "level": "infra",
+      "summary": "Google DocsのURLを受け取り、全文を取得→AIで誤字・冗長・要約を返し、必要ならコメントを挿入する。",
+      "source": "NotePost",
+      "usage": "他者が書いたドキュメントを自分がレビューする前に、AIの一次レビューを入れたい時。",
+      "prompt": "Google DocsをAIレビューするスクリプトを作ってください。\n\n処理:\n1. documents.get でドキュメント本文を取得（structuralElements からテキスト抽出）\n2. Geminiに投げて以下を生成:\n   - 誤字・脱字リスト（位置付き）\n   - 冗長な表現の指摘\n   - 3行要約\n   - ターゲット読者に合わせた改善提案\n3. 結果を新規コメントとして挿入（drive.comments.create）\n4. 3行要約は Slack/Discord に通知\n\nCLI: npm run doc:review -- https://docs.google.com/document/d/..."
+    },
+    {
+      "id": "google-slides-create",
+      "title": "スライドを自動で生成する",
+      "category": "google",
+      "level": "infra",
+      "summary": "YAMLやMarkdownのアウトラインから、Google Slidesでタイトル・見出し・箇条書きスライドを一気に生成する。",
+      "source": "SlideMovie_WorkFlow",
+      "usage": "コンテンツ構成をAIに作らせた後、即プレゼン資料にしたい時。",
+      "prompt": "アウトラインからGoogle Slidesプレゼンを自動生成するスクリプトを作ってください。\n\n入力 (outline.yaml):\ntitle: AI時代の学び方\nslides:\n  - layout: TITLE\n    title: AI時代の学び方\n    subtitle: if(塾) 2026春\n  - layout: TITLE_AND_BODY\n    title: なぜ今AIか\n    body:\n      - 教育が変わる\n      - 仕事が変わる\n      - 学び方が変わる\n\n処理:\n1. slides.presentations.create で空のプレゼン作成\n2. 各スライドに batchUpdate で createSlide → insertText\n3. 箇条書きは createParagraphBullets\n4. 完成プレゼンのURLを返す\n\nCLI: npm run slides:gen -- outline.yaml"
+    },
+    {
+      "id": "google-slides-replace",
+      "title": "スライドの差し込み文字を一括置換する",
+      "category": "google",
+      "level": "infra",
+      "summary": "既存プレゼンの {{名前}} {{日付}} などをJSONから一括置換し、参加者ごとに個別化されたスライドを量産する。",
+      "source": "SlideMovie_WorkFlow",
+      "usage": "修了証や個別カスタマイズが必要なプレゼンを大量に作りたい時。",
+      "prompt": "Google Slidesのテンプレートから参加者別プレゼンを量産するスクリプトを作ってください。\n\n入力:\n- テンプレートID (TEMPLATE_PRESENTATION_ID): {{name}} {{date}} {{course}} のプレースホルダあり\n- participants.json: [{ name, date, course }]\n\n処理:\n1. 各参加者について drive.files.copy でコピー\n2. presentations.batchUpdate の replaceAllText で置換\n3. PDF出力（drive.files.export mimeType: application/pdf）\n4. 出力を out/{name}.pdf に保存\n\nCLI: npm run slides:batch -- participants.json"
+    },
+    {
+      "id": "google-slides-image",
+      "title": "スライドに画像を自動配置する",
+      "category": "google",
+      "level": "infra",
+      "summary": "AI生成した画像URLを、スライドの指定位置・サイズで埋め込む。差し替えにも対応。",
+      "source": "SlideMovie_WorkFlow",
+      "usage": "タイトルスライドのアイキャッチや章扉の画像を自動でセットしたい時。",
+      "prompt": "Google Slidesに画像を自動配置するスクリプトを作ってください。\n\n入力:\n- presentationId\n- 配置情報配列: [{ slideIndex: 0, imageUrl: 'https://...', x: 100, y: 50, width: 400, height: 300 }]\n\n処理:\n1. presentations.get でページID（slides[i].objectId）を取得\n2. batchUpdate の createImage で画像挿入\n   - url は公開アクセス可能なURL必須\n   - 非公開Driveは事前に permissions.create で公開に\n3. 既存画像を差し替える場合は deleteObject → createImage\n\n要件: 画像URLはチップス(image-gemini / image-ftp-upload)で生成した公開URLを想定"
+    },
+    {
+      "id": "google-drive-upload",
+      "title": "生成物をDriveにアップする",
+      "category": "google",
+      "level": "infra",
+      "summary": "ローカルで作った画像・動画・PDFを、指定Driveフォルダに自動アップロード。共有リンクも返す。",
+      "source": "HeartUpApp",
+      "usage": "生成物をチームで共有したい、クラウドバックアップしたい時。",
+      "prompt": "ローカルファイルをGoogle Driveにアップするスクリプトを作ってください。\n\n処理:\n1. drive.files.create で以下を設定:\n   - name: basename(filepath)\n   - parents: [FOLDER_ID]\n   - mimeType: 自動判定（mime-types npm）\n2. 本体は fs.createReadStream(filepath) をmedia.bodyに\n3. アップロード後、drive.permissions.create で anyone:reader の共有設定（オプション --public）\n4. webViewLink を返す\n\nCLI:\nnpm run drive:up -- ./out/video.mp4\nnpm run drive:up -- ./out/video.mp4 --folder=FOLDER_ID --public"
+    },
+    {
+      "id": "google-drive-list",
+      "title": "Driveの特定フォルダのファイル一覧を取得",
+      "category": "google",
+      "level": "infra",
+      "summary": "Drive APIで、指定フォルダの全ファイル（名前・MIME・最終更新・共有URL）を取得しJSONで返す。",
+      "source": "HeartUpApp",
+      "usage": "Driveに溜まった生成物を索引化したい、棚卸ししたい時。",
+      "prompt": "Google Driveの指定フォルダ内ファイル一覧を取得するスクリプトを作ってください。\n\n処理:\n1. drive.files.list に以下のパラメータ:\n   - q: [FOLDER_ID] in parents and trashed=false\n   - fields: files(id,name,mimeType,modifiedTime,webViewLink,size)\n   - pageSize: 1000 (pageTokenで2ページ目以降も取得)\n2. JSONで標準出力\n3. --tree オプションでサブフォルダも再帰\n\n使用例:\nnpm run drive:ls -- FOLDER_ID --format=csv\nnpm run drive:ls -- FOLDER_ID --sort=modified --limit=20"
+    },
+    {
+      "id": "google-drive-watch",
+      "title": "Driveの新規ファイルを自動処理する",
+      "category": "google",
+      "level": "infra",
+      "summary": "指定フォルダを定期ポーリングし、新しく追加されたファイルだけをAIで処理（文字起こし・要約など）する。",
+      "source": "仕事管理",
+      "usage": "Driveに会議録音を置いたら自動で文字起こし＆議事録化したい、など。",
+      "prompt": "Google Drive監視→新規ファイル処理のスクリプトを作ってください。\n\n処理:\n1. 処理済みファイルID一覧を processed.json に保存\n2. 定期実行:\n   - drive.files.list で指定フォルダの最新100件を取得\n   - processed.json に無いものだけ抽出\n   - 各ファイルに対して処理関数(file)を呼び出す\n   - 成功したら processed.json に追加\n3. 処理関数の例（音声→議事録）:\n   - drive.files.get でダウンロード\n   - Whisperで文字起こし（audio-transcript チップス）\n   - Geminiで議事録化\n   - Google Docsとして保存（google-docs-create チップス）\n\n実行: 5分おき (cron)\n環境変数: WATCH_FOLDER_ID"
+    },
+    {
+      "id": "google-gmail-send",
+      "title": "メールを自動で送る（Gmail）",
+      "category": "google",
+      "level": "infra",
+      "summary": "Gmail APIで自分のアドレスからメールを送信。HTML・添付ファイル・テンプレートにも対応。",
+      "source": "仕事管理",
+      "usage": "問い合わせ返信・レポート送付を自動化したい時。",
+      "prompt": "Gmail APIで自動送信するスクリプトを作ってください。\n\n前提: OAuthスコープに https://www.googleapis.com/auth/gmail.send を含むこと\n\n処理:\n1. 入力: { to, subject, html, attachments(パス配列) }\n2. nodemailer で MIMEメッセージを構築（HTML + 添付）\n3. Base64url エンコード\n4. gmail.users.messages.send の raw フィールドに渡して送信\n\nテンプレート:\nsrc/templates/reply.hbs を Handlebars で {{name}} {{body}} 埋め込み\n\nCLI: npm run mail:send -- --to=xxx@example.com --template=reply --data=data.json\n\n注意: SMTPパスワード方式は使わない（API + OAuth が推奨）"
+    },
+    {
+      "id": "google-gmail-classify",
+      "title": "受信メールをAIで優先度分類",
+      "category": "google",
+      "level": "infra",
+      "summary": "Gmailの未読メールを定期的にチェックし、AIで『至急・通常・後回し』に仕分けてラベルを貼る。",
+      "source": "仕事管理",
+      "usage": "メール量が多くて重要なものを見逃しがちな時。",
+      "prompt": "Gmailの未読メールをAI分類するスクリプトを作ってください。\n\n前提: gmail.modify スコープ\n\n処理:\n1. users.messages.list で q=is:unread -label:ai-classified を取得\n2. 各メールについて users.messages.get で本文抽出\n3. Geminiに投げて { priority: 'urgent/normal/later', category: '顧客/社内/営業メール/その他', summary: '1行要約' } を取得\n4. ラベル付与（users.messages.modify）:\n   - urgent → 🔴至急 ラベル\n   - later → 📂後で ラベル\n   - ai-classified ラベル（再処理防止）\n5. urgent ならDiscordに通知\n\n実行: 10分おき"
+    },
+    {
+      "id": "google-gmail-important-forward",
+      "title": "重要メールだけDiscordに転送",
+      "category": "google",
+      "level": "infra",
+      "summary": "指定ラベル（例: Important）のメールをAIで要約し、Discord/LINEにリンク付きで通知する。",
+      "source": "仕事管理",
+      "usage": "メールを開かなくてもチャットで内容を把握したい時。",
+      "prompt": "Gmail→Discord転送スクリプトを作ってください。\n\n処理:\n1. users.messages.list q=label:Important is:unread -label:fwd-done\n2. 各メッセージの本文＋添付ファイル一覧を取得\n3. Geminiで3行要約＋アクション推定（返信必要/情報共有のみ/無視可）\n4. Discord Embed で送信:\n   - タイトル: メール件名\n   - 説明: 要約\n   - フィールド: From / アクション推定\n   - リンク: https://mail.google.com/mail/u/0/#inbox/{messageId}\n5. 転送済みラベル fwd-done を付与\n\n実行: 5分おき"
+    },
+    {
+      "id": "google-forms-responses",
+      "title": "フォーム回答を自動で集計する",
+      "category": "google",
+      "level": "infra",
+      "summary": "Google Forms APIで回答一覧を取得し、日次・週次で集計してレポート化する。",
+      "source": "仕事管理",
+      "usage": "フォーム回答の集計を手動でやめたい、日次で新着を把握したい時。",
+      "prompt": "Google Forms回答を集計するスクリプトを作ってください。\n\n前提: forms.responses.readonly スコープ\n\n処理:\n1. forms.forms.responses.list({ formId: FORM_ID }) で全回答取得\n2. forms.forms.get で質問定義も取得し questionId と質問タイトルを対応付け\n3. 回答を以下の形式に整形:\n   [{ submittedAt, answers: { 質問1: 回答A, ... } }]\n4. 集計:\n   - 日次カウント\n   - 選択式質問は value_counts\n   - 自由記述はGeminiで頻出テーマ抽出\n5. 結果をSpreadsheet に書き出し or Markdownレポート生成\n\nCLI: npm run forms:report -- FORM_ID --since=7days"
+    },
+    {
+      "id": "google-forms-follow-up",
+      "title": "回答者にAIがフォローメールを送る",
+      "category": "google",
+      "level": "infra",
+      "summary": "フォーム新着回答を検知→AIが回答内容に合わせた個別返信を生成→Gmailで送信。",
+      "source": "仕事管理",
+      "usage": "問い合わせや体験申込にすぐ人間的な返信を送りたい時。",
+      "prompt": "フォーム回答に対して自動フォローメールを送るスクリプトを作ってください。\n\n処理フロー:\n1. Google Formsの回答一覧取得（--since=10分前）\n2. 処理済みID一覧と突合し、新着だけ抽出\n3. 各新着について:\n   - Geminiで個別メール本文を生成（過剰に営業的にせず、次のステップを明確に）\n   - 送信前に内容をSlack/Discordに下書き通知（--auto=false時）\n   - --auto=true で自動送信（チップス: google-gmail-send を呼び出し）\n4. 処理済みIDを保存\n\n実行: 10分おき\n安全装置: 1日10通までの上限、管理者メール以外は本送信スキップできるドライランモード"
+    },
+    {
+      "id": "google-youtube-upload",
+      "title": "作った動画をYouTubeに自動アップ",
+      "category": "google",
+      "level": "infra",
+      "summary": "ローカルで生成した動画をYouTube Data APIでアップロード。タイトル・説明・タグ・サムネも自動設定。",
+      "source": "SlideMovie_WorkFlow",
+      "usage": "動画生成→公開までを1コマンドで完結したい時。",
+      "prompt": "YouTube動画アップロードスクリプトを作ってください。\n\n前提: youtube.upload スコープのOAuthトークン\n\n処理:\n1. 入力: { videoPath, title, description, tags(配列), privacyStatus: 'private/unlisted/public' }\n2. youtube.videos.insert を resumable upload で呼び出し:\n   - snippet: { title, description, tags, categoryId: '27' (教育) }\n   - status: { privacyStatus, selfDeclaredMadeForKids: false }\n   - media: fs.createReadStream(videoPath)\n3. 進捗ログ（バイト数）をコンソール出力\n4. サムネ画像パスが指定されていれば youtube.thumbnails.set\n5. 公開URL（https://youtu.be/{videoId}）を返す\n\nCLI: npm run yt:upload -- --video=out/final.mp4 --title-file=out/title.txt --thumb=out/thumb.jpg"
+    },
+    {
+      "id": "google-youtube-transcript",
+      "title": "YouTube動画の字幕を取得してブログ化",
+      "category": "google",
+      "level": "api",
+      "summary": "YouTube URLから字幕を取得→AIで整形しブログ記事Markdownに変換する。",
+      "source": "NotePost",
+      "usage": "参考動画の内容を記事化したい、動画の要約記事を量産したい時。",
+      "prompt": "YouTube字幕→ブログ記事に変換するスクリプトを作ってください。\n\n処理:\n1. youtube-transcript npm パッケージで字幕取得（videoIdから）\n2. 字幕をタイムスタンプ付きテキストに整形\n3. Geminiに投げて:\n   - タイトル（SEO重視の日本語）\n   - 導入（動画の要点）\n   - セクション見出し（5〜7個）\n   - 各セクション本文（元字幕のタイムスタンプリンク付き）\n   - まとめ\n4. Markdown形式で保存 out/{videoId}.md\n5. --auto-note=true で note.com に下書き投稿（post-note チップスを呼び出し）\n\nCLI: npm run yt:blog -- https://youtu.be/VIDEO_ID\n\n注意: 字幕が無い動画は Whisper で代替（audio-transcript チップス経由）"
     }
   ]
 }
