@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ワークフロービルダー | Claude Code チップス集</title>
-  <meta name="description" content="Scratchのようにチップスを縦に積み重ねてワークフローを設計。実装用プロンプトも自動生成。" />
+  <meta name="description" content="Scratchのようにチップスを縦に積み重ねてワークフローを設計。AIに組み合わせを提案してもらうこともできます。" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -19,7 +19,7 @@
         <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center font-black text-white text-lg">if</div>
         <div class="hidden md:block">
           <h1 class="font-bold text-base leading-tight text-slate-900">ワークフロービルダー</h1>
-          <p class="text-xs text-slate-500 mt-0.5">チップスを積み重ねてプロンプトを自動生成</p>
+          <p class="text-xs text-slate-500 mt-0.5">AIに相談 / テンプレから / 1から積み上げ</p>
         </div>
       </a>
       <nav class="flex items-center gap-1.5 sm:gap-2">
@@ -45,39 +45,82 @@
         <span class="text-xs text-slate-500"><span id="palette-count">0</span>件</span>
       </div>
       <input id="palette-search" type="text" placeholder="🔍 検索 (画像, 投稿など)" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-400 focus:bg-white transition mb-3" />
+
+      <!-- 工程タブ -->
+      <div class="mb-2 text-[10px] text-slate-400 font-bold tracking-wider">工程で絞り込む</div>
+      <div id="palette-phases" class="flex flex-wrap gap-1.5 mb-3"></div>
+
+      <!-- カテゴリピル -->
+      <div class="mb-2 text-[10px] text-slate-400 font-bold tracking-wider">カテゴリ</div>
       <div id="palette-categories" class="flex flex-wrap gap-1.5 mb-3"></div>
+
       <div id="palette" class="flex-1 overflow-y-auto pr-1 space-y-2"></div>
     </aside>
 
     <!-- 右：ワークスペース -->
-    <main class="bg-white rounded-2xl border-2 border-slate-200 p-6 min-h-[calc(100vh-140px)]">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h2 class="font-bold text-slate-900 text-lg">あなたのワークフロー</h2>
-          <p class="text-xs text-slate-500 mt-0.5">左のチップスをクリックして追加。ブロックは縦に順番に実行されます。</p>
+    <main class="space-y-5">
+
+      <!-- AIコパイロット -->
+      <div class="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white rounded-2xl p-6 shadow-lg">
+        <div class="flex items-start gap-3 mb-4">
+          <div class="text-3xl">🤖</div>
+          <div class="flex-1">
+            <h2 class="font-black text-lg leading-tight">AIに組み合わせを相談</h2>
+            <p class="text-sm text-white/85 mt-1 leading-relaxed">作りたい自動化をざっくり日本語で書けば、AIが最適なチップスを選んで並べてくれます。</p>
+          </div>
         </div>
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-slate-500"><span id="workflow-count">0</span>ステップ</span>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input id="ai-goal-input" type="text"
+            placeholder="例: 毎朝AIニュースをまとめてInstagramに自動投稿したい"
+            class="flex-1 bg-white/95 text-slate-900 placeholder:text-slate-400 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-white" />
+          <button id="ai-suggest-btn" class="inline-flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg px-5 py-3 text-sm font-bold transition shadow-md">
+            <span>✨ 提案してもらう</span>
+          </button>
         </div>
+        <div id="ai-status" class="hidden mt-3 text-sm bg-white/15 backdrop-blur rounded-lg px-4 py-2"></div>
+        <div id="ai-result" class="hidden mt-3 bg-white/95 text-slate-800 rounded-xl p-4"></div>
       </div>
 
-      <!-- 入力：ワークフロー名・目的 -->
-      <div class="mb-4 p-4 bg-amber-50 border-2 border-amber-200 rounded-xl">
-        <label class="block text-xs font-bold text-amber-900 mb-1">🎯 このワークフローで達成したいこと（任意）</label>
-        <input id="workflow-goal" type="text" placeholder="例：毎朝9時に最新AIニュースをまとめてInstagramに自動投稿する" class="w-full bg-white border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-400 transition" />
+      <!-- スタートテンプレート -->
+      <div class="bg-white rounded-2xl border-2 border-slate-200 p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="font-bold text-slate-900 text-base">🎁 スタートテンプレート</h2>
+            <p class="text-xs text-slate-500 mt-0.5">ワンクリックで組み合わせを読み込めます。そこから改造するのが最速。</p>
+          </div>
+          <button id="toggle-templates" class="text-xs text-slate-500 hover:text-slate-900">折りたたむ ▲</button>
+        </div>
+        <div id="templates-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-3"></div>
       </div>
 
-      <!-- ブロックスタック -->
-      <div id="workspace" class="workspace">
-        <div id="empty-workspace" class="text-center py-20 text-slate-400">
-          <div class="text-6xl mb-3">🧩</div>
-          <p class="text-base font-medium">左のチップスをクリックして、ワークフローを組み立てよう</p>
-          <p class="text-sm mt-2 text-slate-400">上から順にClaude Codeが実装していきます</p>
+      <!-- ワークフロー本体 -->
+      <div class="bg-white rounded-2xl border-2 border-slate-200 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="font-bold text-slate-900 text-lg">あなたのワークフロー</h2>
+            <p class="text-xs text-slate-500 mt-0.5">左のチップスをクリックして追加。ブロックは縦に順番に実行されます。</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-slate-500"><span id="workflow-count">0</span>ステップ</span>
+          </div>
         </div>
-        <div id="block-stack"></div>
-        <div id="stack-end" class="hidden text-center py-6 text-slate-400">
-          <div class="text-2xl">✓</div>
-          <p class="text-sm mt-1">ワークフロー完了</p>
+
+        <div class="mb-4 p-4 bg-amber-50 border-2 border-amber-200 rounded-xl">
+          <label class="block text-xs font-bold text-amber-900 mb-1">🎯 このワークフローで達成したいこと（任意）</label>
+          <input id="workflow-goal" type="text" placeholder="例：毎朝9時に最新AIニュースをまとめてInstagramに自動投稿する" class="w-full bg-white border border-amber-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-400 transition" />
+        </div>
+
+        <div id="workspace" class="workspace">
+          <div id="empty-workspace" class="text-center py-20 text-slate-400">
+            <div class="text-6xl mb-3">🧩</div>
+            <p class="text-base font-medium">左のチップスをクリックして、ワークフローを組み立てよう</p>
+            <p class="text-sm mt-2 text-slate-400">上から順にClaude Codeが実装していきます</p>
+          </div>
+          <div id="block-stack"></div>
+          <div id="stack-end" class="hidden text-center py-6 text-slate-400">
+            <div class="text-2xl">✓</div>
+            <p class="text-sm mt-1">ワークフロー完了</p>
+          </div>
         </div>
       </div>
     </main>

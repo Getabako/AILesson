@@ -1,0 +1,68 @@
+{
+  "templates": [
+    {
+      "id": "tpl-morning-brief",
+      "icon": "🌅",
+      "title": "毎朝カレンダーをDiscordに通知",
+      "description": "朝8時にその日のGoogleカレンダーを取得し、AIで要約してDiscordに通知。",
+      "difficulty": "Lv.3",
+      "stack": ["google-oauth-setup", "google-calendar-brief", "notify-discord", "schedule-github-actions"]
+    },
+    {
+      "id": "tpl-news-instagram",
+      "icon": "📰",
+      "title": "AIニュースを自動でInstagramに投稿",
+      "description": "RSS取得 → AIがネタ選定 → 画像生成 → 品質チェック → FTPアップ → Instagram投稿。",
+      "difficulty": "Lv.3",
+      "stack": ["research-rss", "research-trend", "image-html-render", "image-gemini", "image-quality-gate", "image-ftp-upload", "post-instagram", "notify-discord", "schedule-github-actions"]
+    },
+    {
+      "id": "tpl-weekly-portfolio",
+      "icon": "📊",
+      "title": "毎週株のレポートを自動生成",
+      "description": "ポートフォリオ分析 → スプレッドシート記録 → PDF化 → Discord通知。",
+      "difficulty": "Lv.3",
+      "stack": ["google-service-account", "data-portfolio", "google-sheets-append", "data-dashboard-html", "data-pdf-export", "notify-discord", "schedule-github-actions"]
+    },
+    {
+      "id": "tpl-video-to-youtube",
+      "icon": "🎬",
+      "title": "テーマから動画を作ってYouTubeへ",
+      "description": "台本生成 → ナレーション合成 → スライド→画像 → 字幕同期 → 動画レンダリング → YouTube投稿。",
+      "difficulty": "Lv.3",
+      "stack": ["content-script", "audio-openai-tts", "content-yaml-slides", "video-marp-images", "video-subtitle-sync", "video-remotion", "google-youtube-upload", "notify-discord"]
+    },
+    {
+      "id": "tpl-forms-triage",
+      "icon": "📋",
+      "title": "フォーム回答をAIで自動仕分け",
+      "description": "Googleフォーム回答 → AI分類 → スプレッドシート記録 → 重要ならDiscord通知。",
+      "difficulty": "Lv.3",
+      "stack": ["google-service-account", "google-forms-responses", "google-sheets-form-classify", "google-sheets-append", "notify-discord", "schedule-github-actions"]
+    },
+    {
+      "id": "tpl-youtube-to-blog",
+      "icon": "📜",
+      "title": "YouTubeの字幕からブログ記事を自動生成",
+      "description": "動画字幕取得 → AIでブログ化 → 要約 → noteに下書き投稿。",
+      "difficulty": "Lv.2",
+      "stack": ["google-youtube-transcript", "content-article", "content-summarize", "post-note", "notify-discord"]
+    },
+    {
+      "id": "tpl-drive-minutes",
+      "icon": "🎙",
+      "title": "Drive音声から自動議事録Docs",
+      "description": "Driveの新着音声を監視 → Whisperで文字起こし → Googleドキュメントで議事録化。",
+      "difficulty": "Lv.3",
+      "stack": ["google-oauth-setup", "google-drive-watch", "audio-transcript", "google-docs-template", "notify-discord"]
+    },
+    {
+      "id": "tpl-daily-note",
+      "icon": "📝",
+      "title": "毎日ネタを探して note に自動投稿",
+      "description": "RSSからニュース取得 → AIがネタ選定 → 記事執筆 → noteに下書き投稿 → Discord通知。",
+      "difficulty": "Lv.2",
+      "stack": ["research-rss", "research-trend", "content-article", "post-note", "notify-discord", "schedule-github-actions"]
+    }
+  ]
+}

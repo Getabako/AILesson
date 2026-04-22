@@ -1,0 +1,9 @@
+{
+  "name": "ailesson",
+  "version": "1.0.0",
+  "description": "Claude Code ワークフロー チップス集 + ビルダー (if塾)",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  }
+}
